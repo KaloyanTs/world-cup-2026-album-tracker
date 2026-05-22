@@ -1,0 +1,6 @@
+{
+  "appId": "com.panini.wc26album",
+  "appName": "Panini WC26 Album",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

@@ -1,0 +1,6 @@
+{
+  "name": "World Cup 2026 Album Tracker",
+  "description": "An interactive Panini FIFA World Cup 2026 sticker collection tracking and trading mobile app.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

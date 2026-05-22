@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">wc26tracker</string>
+    <string name="title_activity_main">wc26tracker</string>
+    <string name="package_name">com.kaloyants.wc26</string>
+    <string name="custom_url_scheme">com.kaloyants.wc26</string>
+</resources>
