@@ -195,11 +195,17 @@ export default function App() {
   const uniqueCollectedCount = Object.keys(collection).filter(id => collection[id] > 0).length;
   const totalCompletionPercent = Math.round((uniqueCollectedCount / totalStickersCount) * 105) || 0; // scale for visual representation
 
-  return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md antialiased md:relative">
-      
-      {/* Toast Notification Popups */}
-      {toast && (
+  // Reset entirely
+  const handleResetCollection = () => {
+    if (window.confirm("Are you sure you want to completely reset your album collection? This cannot be undone.")) {
+      setCollection(generateInitialCollectionState());
+      addToast({
+        type: 'success',
+        text: 'Your collection has been reset.'
+      });
+    }
+  };
+
         <div 
           id="global-toast"
           className={`fixed top-24 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl border flex items-center gap-3 transition-opacity duration-300 pointer-events-none ${
@@ -356,8 +362,18 @@ export default function App() {
                 <span>Teams</span>
               </button>
             </li>
-
           </ul>
+        </nav>
+
+        <div className="px-6 pt-6 border-t border-outline-variant/60 flex flex-col gap-2 shrink-0 select-none">
+          <button 
+            onClick={() => { handleResetCollection(); setMobileMenuOpen(false); }}
+            className="w-full text-left flex items-center gap-3.5 px-6 py-3.5 font-body-md text-sm rounded-xl transition-all text-error hover:bg-error/10"
+          >
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span>Reset Collection</span>
+          </button>
+        </div>
         </nav>
 
         {/* Lower buttons segment of sidebar */}
