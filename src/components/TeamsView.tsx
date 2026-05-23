@@ -48,8 +48,8 @@ export function TeamsView({
   const getTeamRatios = (teamCode: string) => {
     const teamStickers = allStickers.filter(s => s.teamCode === teamCode);
     const total = teamStickers.length; // Always 20
-    const owned = teamStickers.filter(s => (collection[s.id] || 0) > 0).length;
-    const isBadgeOwned = (collection[`${teamCode}-1`] || 0) > 0;
+    const owned = teamStickers.filter(s => (collection.counts[s.id] || 0) > 0).length;
+    const isBadgeOwned = (collection.counts[`${teamCode}-1`] || 0) > 0;
     const progressPercent = Math.round((owned / total) * 100);
 
     return { total, owned, isBadgeOwned, progressPercent };

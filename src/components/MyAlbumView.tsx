@@ -6,12 +6,14 @@
 import React, { useState, useMemo } from 'react';
 import { CollectionState, Sticker, Team } from '../types';
 import { TEAMS } from '../data';
-import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check } from 'lucide-react';
+import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Camera } from 'lucide-react';
+import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 
 interface MyAlbumViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
-  updateStickerCount: (stickerId: string, delta: number) => void;
+  updateStickerCount: (stickerId: string, delta: number, comment?: string, photoUrl?: string) => void;
+  saveStickerPhoto: (stickerId: string, photoUrl: string) => void;
   openTeamDetails: (teamCode: string) => void;
 }
 
@@ -19,6 +21,7 @@ export function MyAlbumView({
   collection,
   allStickers,
   updateStickerCount,
+  saveStickerPhoto,
   openTeamDetails
 }: MyAlbumViewProps) {
   // Filters
@@ -30,6 +33,28 @@ export function MyAlbumView({
 
   // Selected Sticker for quick adjust modal
   const [selectedStickerDetail, setSelectedStickerDetail] = useState<Sticker | null>(null);
+
+  // Photo capture helper
+  const handleCapturePhoto = async (stickerId: string) => {
+    if (collection.photos?.[stickerId]) {
+      alert("You can only take one photo per sticker!");
+      return;
+    }
+
+    try {
+      const image = await CapacitorCamera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl
+      });
+      if (image.dataUrl) {
+        saveStickerPhoto(stickerId, image.dataUrl);
+      }
+    } catch (e) {
+      console.log('Skipped taking picture', e);
+    }
+  };
+
 
   // Computed sections options
   const teamsMap = useMemo(() => {
@@ -91,14 +116,14 @@ export function MyAlbumView({
     const sorted = [...list];
     if (selectedSort === 'Most Repeats') {
       sorted.sort((a, b) => {
-        const aCount = collection[a.id] || 0;
-        const bCount = collection[b.id] || 0;
+        const aCount = collection.counts[a.id] || 0;
+        const bCount = collection.counts[b.id] || 0;
         return bCount - aCount; // Descending duplicates
       });
     } else if (selectedSort === 'Most Needed') {
       sorted.sort((a, b) => {
-        const aCount = (collection[a.id] || 0) === 0 ? 1 : 0;
-        const bCount = (collection[b.id] || 0) === 0 ? 1 : 0;
+        const aCount = (collection.counts[a.id] || 0) === 0 ? 1 : 0;
+        const bCount = (collection.counts[b.id] || 0) === 0 ? 1 : 0;
         return bCount - aCount; // Gaps first
       });
     } else {
@@ -148,7 +173,7 @@ export function MyAlbumView({
   // Calculate unique section completion
   const getSectionStats = (stickers: Sticker[]) => {
     const total = stickers.length;
-    const owned = stickers.filter(s => (collection[s.id] || 0) > 0).length;
+    const owned = stickers.filter(s => (collection.counts[s.id] || 0) > 0).length;
     const percentage = Math.round((owned / total) * 100) || 0;
     return { total, owned, percentage };
   };
@@ -260,7 +285,7 @@ export function MyAlbumView({
         <div id="album-sections-scroll" className="flex flex-col gap-12 w-full">
           {groupedStickers.length === 0 ? (
             <div className="bg-surface-container-lowest p-12 rounded-3xl border border-outline-variant text-center flex flex-col items-center justify-center">
-              <span className="material-symbols-outlined text-5-xl text-outline mb-4 opacity-40">find_in_page</span>
+              
               <h3 className="font-headline-md text-lg text-on-surface">No matching stickers found</h3>
               <p className="text-sm text-on-surface-variant max-w-sm mt-1 mb-4 font-body-md">
                 Try loosening your category dropdown or position filters to reveal the album pages.
@@ -396,19 +421,18 @@ export function MyAlbumView({
                               : 'bg-surface-container-high outline-dashed outline-outline-variant/30'
                           }`}>
                             {hasIt ? (
-                              <div className="w-full h-full relative">
-                                <img 
-                                  alt={sticker.name} 
-                                  referrerPolicy="no-referrer"
-                                  className={`w-full h-full object-cover object-top select-none group-hover:scale-105 duration-500 transition-transform ${
-                                    isShiny ? 'contrast-[1.15] saturate-125 brightness-[1.03]' : ''
-                                  }`}
-                                  src={
-                                    isShiny 
-                                      ? `https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=70&h=180` // Golden light for shinies
-                                      : `https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&q=70&h=180` // Generic football light
-                                  } 
-                                />
+                              <div className="w-full h-full relative flex items-center justify-center">
+                                {collection.photos?.[sticker.id] ? (
+                                  <img 
+                                    src={collection.photos[sticker.id]} 
+                                    alt={sticker.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span className={`material-symbols-outlined text-4xl ${isShiny ? 'text-tertiary' : 'text-primary/60'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                                    {sticker.position === 'Emblem' ? 'shield' : sticker.position === 'Team Photo' ? 'groups' : 'person'}
+                                  </span>
+                                )}
                                 {isShiny && (
                                   <div className="absolute top-2 left-2 text-gold animate-bounce">
                                     <Sparkles className="w-4 h-4 text-tertiary-fixed-dim" />
@@ -488,7 +512,7 @@ export function MyAlbumView({
                 onClick={() => setSelectedStickerDetail(null)}
                 className="text-on-surface-variant hover:text-on-surface rounded-full p-1 hover:bg-surface-variant transition-colors"
               >
-                <span className="material-symbols-outlined select-none">close</span>
+                <Plus className="w-5 h-5 rotate-45" />
               </button>
             </div>
 
@@ -498,15 +522,9 @@ export function MyAlbumView({
               }`}>
                 <div className="w-full relative flex-grow rounded-xl overflow-hidden bg-surface-container-high flex items-center justify-center">
                   {(collection[selectedStickerDetail.id] || 0) > 0 ? (
-                    <img 
-                      alt="" 
-                      className="w-full h-full object-cover" 
-                      src={
-                        selectedStickerDetail.isShiny 
-                          ? `https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=70&h=180`
-                          : `https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&q=70&h=180`
-                      } 
-                    />
+                    <span className={`material-symbols-outlined text-5xl ${selectedStickerDetail.isShiny ? 'text-tertiary' : 'text-primary/60'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {selectedStickerDetail.position === 'Emblem' ? 'shield' : selectedStickerDetail.position === 'Team Photo' ? 'groups' : 'person'}
+                    </span>
                   ) : (
                     <span className="material-symbols-outlined text-4xl text-outline opacity-40">
                       {selectedStickerDetail.position === 'Emblem' ? 'shield' : selectedStickerDetail.position === 'Team Photo' ? 'groups' : 'person'}
@@ -537,34 +555,59 @@ export function MyAlbumView({
               <div className="flex items-center gap-6 mt-2 relative z-10 w-full justify-center">
                 <button 
                   id="sticker-modal-dec"
-                  disabled={(collection[selectedStickerDetail.id] || 0) <= 0}
-                  onClick={() => updateStickerCount(selectedStickerDetail.id, -1)}
+                  disabled={(collection.counts[selectedStickerDetail.id] || 0) <= 0}
+                  onClick={() => {
+                    const comment = window.prompt("Reason for manual inventory reduction (required):");
+                    if (comment) {
+                      updateStickerCount(selectedStickerDetail.id, -1, comment);
+                    }
+                  }}
                   className="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center bg-surface hover:bg-surface-variant transition-colors disabled:opacity-40 select-none active:scale-90"
                 >
                   <Minus className="w-4 h-4 text-on-surface" />
                 </button>
                 <div className="flex flex-col items-center">
                   <span className="font-headline-lg text-3xl font-black text-on-surface">
-                    {collection[selectedStickerDetail.id] || 0}
+                    {collection.counts[selectedStickerDetail.id] || 0}
                   </span>
                   <span className="text-[10px] text-outline font-label-bold uppercase tracking-wider mt-0.5">Owned</span>
                 </div>
                 <button 
                   id="sticker-modal-inc"
-                  onClick={() => updateStickerCount(selectedStickerDetail.id, 1)}
+                  onClick={() => {
+                    if ((collection.counts[selectedStickerDetail.id] || 0) === 0) {
+                      if (window.confirm("Are you sure you want to stick this sticker?")) {
+                        updateStickerCount(selectedStickerDetail.id, 1);
+                      }
+                    } else {
+                      updateStickerCount(selectedStickerDetail.id, 1);
+                    }
+                  }}
                   className="w-12 h-12 rounded-full border-none flex items-center justify-center bg-primary hover:bg-surface-tint text-on-primary transition-colors select-none active:scale-90 shadow-md"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
 
+              {/* Take Sticker Photo */}
+              {(collection.counts[selectedStickerDetail.id] || 0) > 0 && !collection.photos?.[selectedStickerDetail.id] && (
+                <button
+                  className="flex items-center justify-center gap-2 text-xs font-label-bold text-primary hover:bg-primary/5 px-4 py-2 mt-2 w-full rounded-xl transition-all cursor-pointer"
+                  onClick={() => handleCapturePhoto(selectedStickerDetail.id)}
+                >
+                  <Camera className="w-4 h-4" />
+                  Take Sticker Photo
+                </button>
+              )}
+
               {/* Paste Into Album direct shortcut button */}
-              {(collection[selectedStickerDetail.id] || 0) === 0 && (
+              {(collection.counts[selectedStickerDetail.id] || 0) === 0 && (
                 <button 
                   id="sticker-modal-quick-own"
                   onClick={() => {
-                    updateStickerCount(selectedStickerDetail.id, 1);
-                    setSelectedStickerDetail(null);
+                    if (window.confirm("Are you sure you want to stick this sticker?")) {
+                      updateStickerCount(selectedStickerDetail.id, 1);
+                    }
                   }}
                   className="w-full bg-secondary text-on-secondary py-3 rounded-full font-label-bold text-sm shadow-md hover:opacity-90 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 mt-2 select-none"
                 >
@@ -579,3 +622,4 @@ export function MyAlbumView({
     </div>
   );
 }
+

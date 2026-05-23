@@ -38,14 +38,14 @@ export function DashboardView({
 
   // Math Calculations
   const totalStickers = allStickers.length;
-  const uniqueCollected = Object.keys(collection).filter(id => collection[id] > 0).length;
+  const uniqueCollected = Object.keys(collection.counts).filter(id => collection.counts[id] > 0).length;
   const completionPercentage = Math.round((uniqueCollected / totalStickers) * 100);
   const neededStickers = totalStickers - uniqueCollected;
 
   // Calculate duplicates
-  const totalOwned = Object.values(collection).reduce((acc, curr) => acc + curr, 0);
-  const duplicatesCount = Object.values(collection).reduce((acc, curr) => {
-    return acc + (curr > 1 ? curr - 1 : 0);
+  const totalOwned = Object.values(collection.counts).reduce((acc, curr) => acc + (curr as number), 0);
+  const duplicatesCount = Object.values(collection.counts).reduce((acc, curr) => {
+    return acc + ((curr as number) > 1 ? (curr as number) - 1 : 0);
   }, 0);
 
   const handleQuickAdd = (e: React.FormEvent) => {

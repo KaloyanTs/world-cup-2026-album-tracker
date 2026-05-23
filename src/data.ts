@@ -383,65 +383,20 @@ export function generateAllStickers(): Sticker[] {
   return stickers;
 }
 
-// Generate an initial collected state corresponding to exactly 442 owned and 87 duplicates.
-// This perfectly recreates the design metrics (65% progress is for 442 + 87, total 980)
-// To reach exactly 442, we randomly mark 442 stickers from the 980 database as owned.
-// Out of these 442 owned stickers, we assign 87 of them a duplicate count of +1 (total 2).
+// Generate an initial empty collection state.
 export function generateInitialCollectionState(): CollectionState {
   const allStickers = generateAllStickers();
-  const state: CollectionState = {};
+  const counts: { [stickerId: string]: number } = {};
 
-  // Default initialize everything to 0
+  // Initialize everything to 0
   for (const s of allStickers) {
-    state[s.id] = 0;
+    counts[s.id] = 0;
   }
 
-  // We want to collect exactly 442
-  // We'll deterministically select them so it's stable using indexes, but looks organic
-  let collectedCount = 0;
-  const targetCollected = 442;
-  const targetDuplicates = 87;
-
-  // Mark specific ones as owned
-  for (let i = 0; i < allStickers.length; i++) {
-    if (collectedCount >= targetCollected) break;
-
-    // Use a clean pattern: e.g. alternate, always grab Messi/Ochoa/key players to look perfect!
-    const sticker = allStickers[i];
-    const isSpecialSticker = sticker.id === "00" || sticker.id === "FWC-1" || sticker.id === "FWC-7" || sticker.id === "MEX-2" || sticker.id === "ARG-10";
-    
-    // Pick based on indices or special values
-    if (isSpecialSticker || (i % 2 === 0 && (i % 5 !== 0 || i % 3 === 0))) {
-      state[sticker.id] = 1;
-      collectedCount++;
-    }
-  }
-
-  // Fill up if we are under 442 due to mathematical precision
-  let idx = 0;
-  while (collectedCount < targetCollected && idx < allStickers.length) {
-    const s = allStickers[idx];
-    if (state[s.id] === 0) {
-      state[s.id] = 1;
-      collectedCount++;
-    }
-    idx++;
-  }
-
-  // Now add exactly 87 duplicates
-  let dupCount = 0;
-  let dupIdx = 0;
-  while (dupCount < targetDuplicates && dupIdx < allStickers.length) {
-    const s = allStickers[dupIdx];
-    // Add duplicates only on stickers we already satisfy as collected
-    if (state[s.id] === 1) {
-      state[s.id] = 2; // owned 2 (one original + 1 duplicate)
-      dupCount++;
-    }
-    dupIdx++;
-  }
-
-  return state;
+  return {
+    counts,
+    photos: {}
+  };
 }
 
 // Beautiful list of community trader profiles and listings to simulate active community matches

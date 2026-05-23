@@ -13,14 +13,17 @@ import {
   CheckCircle, 
   AlertCircle,
   Plus,
-  Minus
+  Minus,
+  Camera as CameraIcon
 } from 'lucide-react';
+import { Camera, CameraResultType } from '@capacitor/camera';
 
 interface TeamDetailsViewProps {
   team: Team;
   collection: CollectionState;
   allStickers: Sticker[];
-  updateStickerCount: (stickerId: string, delta: number) => void;
+  updateStickerCount: (stickerId: string, delta: number, comment?: string, photoUrl?: string) => void;
+  saveStickerPhoto: (stickerId: string, photoUrl: string) => void;
   onBack: () => void;
 }
 
@@ -29,6 +32,7 @@ export function TeamDetailsView({
   collection,
   allStickers,
   updateStickerCount,
+  saveStickerPhoto,
   onBack
 }: TeamDetailsViewProps) {
   // Grab the 20 stickers for this team
@@ -41,7 +45,7 @@ export function TeamDetailsView({
 
   // Statistics
   const totalCount = squadStickers.length; // Always 20
-  const ownedCount = squadStickers.filter(s => (collection[s.id] || 0) > 0).length;
+  const ownedCount = squadStickers.filter(s => (collection.counts[s.id] || 0) > 0).length;
   const neededCount = totalCount - ownedCount;
   
   // Dasharray calculation for SVG progress circle (Circumference is 100)
@@ -152,7 +156,7 @@ export function TeamDetailsView({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
           {squadStickers.map((sticker) => {
-            const count = collection[sticker.id] || 0;
+            const count = collection.counts[sticker.id] || 0;
             const hasIt = count > 0;
             const isShiny = sticker.isShiny;
 
@@ -201,7 +205,13 @@ export function TeamDetailsView({
                       : 'bg-surface-container-low outline-outline-variant/30'
                     : 'bg-surface-container-high outline-dashed outline-outline-variant/30'
                 }`}>
-                  {hasIt ? (
+                  {collection.photos?.[sticker.id] ? (
+                    <img 
+                      src={collection.photos[sticker.id]} 
+                      alt={sticker.name}
+                      className="w-full h-full object-cover object-top select-none"
+                    />
+                  ) : hasIt ? (
                     <div className="w-full h-full relative">
                       <img 
                         alt="" 
@@ -297,7 +307,13 @@ export function TeamDetailsView({
                 selectedSticker.isShiny ? 'bg-gradient-to-b from-amber-50 to-amber-100 border-2 border-tertiary-fixed' : 'bg-surface-container-lowest border border-outline-variant'
               }`}>
                 <div className="w-full relative flex-grow rounded-xl overflow-hidden bg-surface-container-high flex items-center justify-center">
-                  {(collection[selectedSticker.id] || 0) > 0 ? (
+                  {collection.photos?.[selectedSticker.id] ? (
+                    <img 
+                      src={collection.photos[selectedSticker.id]} 
+                      alt={selectedSticker.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (collection.counts[selectedSticker.id] || 0) > 0 ? (
                     <img 
                       alt="" 
                       className="w-full h-full object-cover" 
@@ -327,36 +343,90 @@ export function TeamDetailsView({
                 <h4 className="font-headline-md text-base font-bold text-on-surface">{selectedSticker.name}</h4>
                 <p className="font-body-md text-xs text-on-surface-variant max-w-xs mx-auto mt-1 leading-relaxed">
                   {selectedSticker.isShiny ? 'Special team metallic logo.' : 'Official team athlete profile sticker.'}
-                  {(collection[selectedSticker.id] || 0) > 0 
-                    ? ` You own ${collection[selectedSticker.id]} of this sticker.` 
+                  {(collection.counts[selectedSticker.id] || 0) > 0 
+                    ? ` You own ${collection.counts[selectedSticker.id]} of this sticker.` 
                     : ' You are missing this sticker. Tap the increment (+) controller to acquire.'}
                 </p>
               </div>
+
+              {/* Photo Capture input & logic for owned stickers missing photo */}
+              {(collection.counts[selectedSticker.id] || 0) > 0 && !collection.photos?.[selectedSticker.id] && (
+                <button
+                  className="flex items-center gap-2 text-xs font-label-bold text-primary hover:bg-primary/5 px-4 py-2 rounded-xl transition-all cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      const image = await Camera.getPhoto({
+                        quality: 90,
+                        allowEditing: false,
+                        resultType: CameraResultType.DataUrl
+                      });
+                      if (image.dataUrl) {
+                        saveStickerPhoto(selectedSticker.id, image.dataUrl);
+                      }
+                    } catch (e) {
+                      console.log('Skipped taking picture', e);
+                    }
+                  }}
+                >
+                  <CameraIcon className="w-4 h-4" />
+                  Take Sticker Photo
+                </button>
+              )}
 
               {/* Adjusters */}
               <div className="flex items-center gap-6 mt-2 relative z-10 w-full justify-center">
                 <button 
                   id="sticker-quick-dec"
-                  disabled={(collection[selectedSticker.id] || 0) <= 0}
-                  onClick={() => updateStickerCount(selectedSticker.id, -1)}
+                  disabled={(collection.counts[selectedSticker.id] || 0) <= 0}
+                  onClick={() => {
+                    const comment = window.prompt("Reason for manual inventory reduction (required):");
+                    if (comment) {
+                      updateStickerCount(selectedSticker.id, -1, comment);
+                    }
+                  }}
                   className="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center bg-surface hover:bg-surface-variant transition-colors disabled:opacity-40 select-none active:scale-90"
                 >
                   <Minus className="w-4 h-4 text-on-surface" />
                 </button>
                 <div className="flex flex-col items-center">
                   <span className="font-headline-lg text-3xl font-black text-on-surface">
-                    {collection[selectedSticker.id] || 0}
+                    {collection.counts[selectedSticker.id] || 0}
                   </span>
                   <span className="text-[10px] text-outline font-label-bold uppercase tracking-wider mt-0.5">Owned</span>
                 </div>
                 <button 
                   id="sticker-quick-inc"
-                  onClick={() => updateStickerCount(selectedSticker.id, 1)}
+                  onClick={() => {
+                    if ((collection.counts[selectedSticker.id] || 0) === 0) {
+                      if (window.confirm("Are you sure you want to stick this sticker?")) {
+                        updateStickerCount(selectedSticker.id, 1);
+                      }
+                    } else {
+                      updateStickerCount(selectedSticker.id, 1);
+                    }
+                  }}
                   className="w-12 h-12 rounded-full border-none flex items-center justify-center bg-primary hover:bg-surface-tint text-on-primary transition-colors select-none active:scale-90 shadow-md"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Direct ownership logic */}
+              {(collection.counts[selectedSticker.id] || 0) === 0 && (
+                <div className="flex flex-col gap-2 w-full mt-2">
+                  <button 
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to stick this sticker?")) {
+                        updateStickerCount(selectedSticker.id, 1);
+                      }
+                    }}
+                    className="w-full bg-primary text-on-primary py-3 rounded-full font-label-bold text-sm shadow-md hover:opacity-90 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5 select-none"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Stick!
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

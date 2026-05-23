@@ -15,53 +15,55 @@ import {
   CheckCircle,
   AlertCircle,
   HelpCircle,
-  Plus
+  Plus,
+  Search
 } from 'lucide-react';
 
 export interface ManualSwap {
   id: string;
+  type: 'swap';
   timestamp: number;
   personName: string;
   gaveStickers: string[];
   receivedStickers: string[];
+  comment?: string;
 }
+
+export interface AdjustmentEntry {
+  id: string;
+  type: 'adjustment';
+  timestamp: number;
+  stickerId: string;
+  delta: number;
+  comment: string;
+}
+
+export type ActivityEntry = ManualSwap | AdjustmentEntry;
 
 interface TradingViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
   updateCollectionStateDirectly: React.Dispatch<React.SetStateAction<CollectionState>>;
   addToast: (msg: { type: 'success' | 'error'; text: string }) => void;
+  activityLog: ActivityEntry[];
+  setActivityLog: React.Dispatch<React.SetStateAction<ActivityEntry[]>>;
 }
 
 export function TradingView({
   collection,
   allStickers,
   updateCollectionStateDirectly,
-  addToast
+  addToast,
+  activityLog,
+  setActivityLog
 }: TradingViewProps) {
   // Inputs
   const [personName, setPersonName] = useState('');
   const [gaveInput, setGaveInput] = useState('');
   const [receivedInput, setReceivedInput] = useState('');
+  const [swapComment, setSwapComment] = useState('');
   const [bypassChecks, setBypassChecks] = useState(false);
-
-  // Manual Swaps local persistence list
-  const [manualSwaps, setManualSwaps] = useState<ManualSwap[]>(() => {
-    const stored = localStorage.getItem('panini_wc26_manual_swaps_v1');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error("Failed to parse manual swaps:", e);
-      }
-    }
-    return [];
-  });
-
-  // Persist manual swaps
-  useEffect(() => {
-    localStorage.setItem('panini_wc26_manual_swaps_v1', JSON.stringify(manualSwaps));
-  }, [manualSwaps]);
+  const [logSearchQuery, setLogSearchQuery] = useState('');
 
   // Sticker ID lookup helper
   const stickersMap = useMemo(() => {
@@ -71,6 +73,36 @@ export function TradingView({
     }
     return map;
   }, [allStickers]);
+
+  // Filtered and Sorted log
+  const filteredLog = useMemo(() => {
+    let result = [...activityLog];
+
+    // Search filter
+    if (logSearchQuery.trim()) {
+      const query = logSearchQuery.toLowerCase();
+      result = result.filter(entry => {
+        if (entry.type === 'swap') {
+          return (
+            entry.personName.toLowerCase().includes(query) ||
+            entry.gaveStickers.some(id => id.toLowerCase().includes(query)) ||
+            entry.receivedStickers.some(id => id.toLowerCase().includes(query)) ||
+            (entry.comment && entry.comment.toLowerCase().includes(query))
+          );
+        } else {
+          return (
+            entry.stickerId.toLowerCase().includes(query) ||
+            entry.comment.toLowerCase().includes(query)
+          );
+        }
+      });
+    }
+
+    // Sort by most recent
+    result.sort((a, b) => b.timestamp - a.timestamp);
+
+    return result;
+  }, [activityLog, logSearchQuery]);
 
   // Clean parse text codes (e.g. "FWC-7, MEX-10" -> ["FWC-7", "MEX-10"])
   const cleanParseInput = (input: string): string[] => {
@@ -93,7 +125,7 @@ export function TradingView({
   const getMissingGaveStickers = (input: string): string[] => {
     const parsed = cleanParseInput(input);
     return parsed.filter(id => {
-      const owned = collection[id] || 0;
+      const owned = collection.counts[id] || 0;
       return owned < 1;
     });
   };
@@ -102,7 +134,7 @@ export function TradingView({
   const getSoloGaveStickers = (input: string): string[] => {
     const parsed = cleanParseInput(input);
     return parsed.filter(id => {
-      const owned = collection[id] || 0;
+      const owned = collection.counts[id] || 0;
       return owned === 1;
     });
   };
@@ -135,14 +167,14 @@ export function TradingView({
   // Get active user duplicates for quick-pills helper (items where count > 1)
   const userDuplicates = useMemo(() => {
     return allStickers
-      .filter(s => (collection[s.id] || 0) > 1)
+      .filter(s => (collection.counts[s.id] || 0) > 1)
       .slice(0, 15);
   }, [allStickers, collection]);
 
   // Get active user missing for quick-pills helper (items where count === 0)
   const userMissing = useMemo(() => {
     return allStickers
-      .filter(s => (collection[s.id] || 0) === 0)
+      .filter(s => (collection.counts[s.id] || 0) === 0)
       .slice(0, 15);
   }, [allStickers, collection]);
 
@@ -184,6 +216,23 @@ export function TradingView({
         });
         return;
       }
+
+      const solo = getSoloGaveStickers(gaveInput);
+      if (solo.length > 0) {
+        addToast({
+          type: 'error',
+          text: `Rules Violation: You cannot trade your only copy of: ${solo.join(', ')} (it's in your album!)`
+        });
+        return;
+      }
+
+      if (gave.length > 0 && !swapComment.trim()) {
+        addToast({
+          type: 'error',
+          text: `Adjustment Error: A comment is required for all inventory decreases.`
+        });
+        return;
+      }
     }
 
     // Apply updates to the state
@@ -208,18 +257,21 @@ export function TradingView({
     // Record the swap
     const newSwap: ManualSwap = {
       id: `swap-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      type: 'swap',
       timestamp: Date.now(),
       personName: personName.trim(),
       gaveStickers: gave,
-      receivedStickers: received
+      receivedStickers: received,
+      comment: swapComment.trim() || undefined
     };
 
-    setManualSwaps(prev => [newSwap, ...prev]);
+    setActivityLog(prev => [newSwap, ...prev]);
 
     // Reset inputs
     setPersonName('');
     setGaveInput('');
     setReceivedInput('');
+    setSwapComment('');
 
     addToast({
       type: 'success',
@@ -227,32 +279,59 @@ export function TradingView({
     });
   };
 
-  const handleUndoSwap = (swap: ManualSwap) => {
+  const handleUndoSwap = (entry: ActivityEntry) => {
+    // Check if undoing would violate the no-unsticking rule
+    if (entry.type === 'swap') {
+      const wouldUnstick = entry.receivedStickers.filter(id => (collection.counts[id] || 0) === 1);
+      if (wouldUnstick.length > 0) {
+        addToast({
+          type: 'error',
+          text: `Cannot undo: You've already sticked these into your album: ${wouldUnstick.join(', ')}`
+        });
+        return;
+      }
+    } else {
+      if (entry.delta > 0 && (collection.counts[entry.stickerId] || 0) === 1) {
+        addToast({
+          type: 'error',
+          text: `Cannot undo: ${entry.stickerId} is already sticked in your album!`
+        });
+        return;
+      }
+    }
+
     // Revert inventory
     updateCollectionStateDirectly((current) => {
       const next = { ...current };
+      next.counts = { ...next.counts };
 
-      // Add back stickers we gave
-      swap.gaveStickers.forEach(id => {
-        next[id] = (next[id] || 0) + 1;
-      });
+      if (entry.type === 'swap') {
+        // Add back stickers we gave
+        entry.gaveStickers.forEach(id => {
+          next.counts[id] = (next.counts[id] || 0) + 1;
+        });
 
-      // Deduct stickers we received
-      swap.receivedStickers.forEach(id => {
-        if (next[id] > 0) {
-          next[id]--;
-        }
-      });
+        // Deduct stickers we received
+        entry.receivedStickers.forEach(id => {
+          if (next.counts[id] > 0) {
+            next.counts[id]--;
+          }
+        });
+      } else {
+        // Reverse adjustment
+        const { stickerId, delta } = entry;
+        next.counts[stickerId] = Math.max(0, (next.counts[stickerId] || 0) - delta);
+      }
 
       return next;
     });
 
-    // Remove swap from state
-    setManualSwaps(prev => prev.filter(s => s.id !== swap.id));
+    // Remove entry from state
+    setActivityLog(prev => prev.filter(s => s.id !== entry.id));
 
     addToast({
       type: 'success',
-      text: `Swap with ${swap.personName} reverted. Album inventory updated!`
+      text: `Entry reverted. Album inventory updated!`
     });
   };
 
@@ -338,7 +417,7 @@ export function TradingView({
                             onClick={() => handleAddGaveCode(s.id)}
                             className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-[10px] font-mono hover:bg-secondary hover:text-on-secondary transition-colors"
                           >
-                            +{s.id} ({collection[s.id]}x)
+                            +{s.id} ({collection.counts[s.id]}x)
                           </button>
                         ))}
                       </div>
@@ -383,6 +462,21 @@ export function TradingView({
                 </div>
               </div>
 
+              {/* Swap Explanation / Comment */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-bold text-on-surface-variant text-xs uppercase tracking-wide">
+                  Swap Explanation / Comment {parsedGaveList.length > 0 && <span className="text-[#ba1a1a]">*</span>}
+                </label>
+                <textarea
+                  id="swap-comment"
+                  value={swapComment}
+                  onChange={(e) => setSwapComment(e.target.value)}
+                  placeholder={parsedGaveList.length > 0 ? "Explain why you're parting with these duplicates (Required)..." : "Optional note about this swap..."}
+                  rows={2}
+                  className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline-variant rounded-xl font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-outline resize-none"
+                />
+              </div>
+
               {/* Live Preview / Input validation feedback */}
               {(parsedGaveList.length > 0 || parsedReceivedList.length > 0 || invalidGaveList.length > 0 || invalidReceivedList.length > 0) && (
                 <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex flex-col gap-3 font-body-md text-xs">
@@ -395,7 +489,7 @@ export function TradingView({
                       <ul className="list-disc pl-4 space-y-1">
                         {parsedGaveList.map(id => {
                           const s = stickersMap.get(id);
-                          const ownedCount = collection[id] || 0;
+                          const ownedCount = collection.counts[id] || 0;
                           const hasDuplicate = ownedCount > 1;
                           
                           return (
@@ -422,7 +516,7 @@ export function TradingView({
                       <ul className="list-disc pl-4 space-y-1">
                         {parsedReceivedList.map(id => {
                           const s = stickersMap.get(id);
-                          const isNeeded = (collection[id] || 0) === 0;
+                          const isNeeded = (collection.counts[id] || 0) === 0;
                           
                           return (
                             <li id={`live-validation-received-${id}`} key={id} className="text-on-surface-variant">
@@ -463,7 +557,9 @@ export function TradingView({
                 />
                 <label htmlFor="swap-bypass-inventory" className="text-on-surface-variant text-xs font-medium cursor-pointer flex items-center gap-1">
                   Bypass inventory validation check
-                  <HelpCircle className="w-3 h-3 text-outline" title="Enable to log swaps of cards even if they do not exist in your digital inventory yet." />
+                  <span title="Enable to log swaps of cards even if they do not exist in your digital inventory yet.">
+                    <HelpCircle className="w-3 h-3 text-outline" />
+                  </span>
                 </label>
               </div>
 
@@ -510,111 +606,152 @@ export function TradingView({
 
       {/* BOTTOM SEGMENT: SWAP HISTORY REGISTRY LOG */}
       <div id="swap-log-segment" className="flex flex-col gap-4 mt-4">
-        <h3 className="font-headline-md text-xl font-bold text-on-surface flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-primary" />
-          Swap History Registry ({manualSwaps.length})
-        </h3>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h3 className="font-headline-md text-xl font-bold text-on-surface flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            Activity & Swap History ({activityLog.length})
+          </h3>
 
-        {manualSwaps.length === 0 ? (
+          <div className="relative flex-1 md:max-w-xs">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
+            <input
+              type="text"
+              placeholder="Search history..."
+              value={logSearchQuery}
+              onChange={(e) => setLogSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        {filteredLog.length === 0 ? (
           <div className="bg-surface-container-low border border-dashed border-outline-variant rounded-2xl p-12 text-center text-on-surface-variant">
             <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center mx-auto mb-3">
               <ArrowLeftRight className="w-6 h-6 text-outline" />
             </div>
-            <p className="font-label-bold text-sm text-on-surface">No manual swaps registered yet</p>
+            <p className="font-label-bold text-sm text-on-surface">No entries found</p>
             <p className="text-xs text-on-surface-variant mt-1 max-w-sm mx-auto">
-              Any direct swaps and hand-to-hand trades you record above will show up inside this persistent history log.
+              Any direct swaps and manual adjustments you record will show up here.
             </p>
           </div>
         ) : (
           <div id="swap-history-list" className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {manualSwaps.map((swap) => (
+            {filteredLog.map((entry) => (
               <div 
-                id={`swap-history-item-${swap.id}`}
-                key={swap.id}
+                id={`activity-item-${entry.id}`}
+                key={entry.id}
                 className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden group"
               >
                 {/* Visual marker ribbon */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
+                <div className={`absolute top-0 left-0 w-full h-1 ${entry.type === 'swap' ? 'bg-primary' : 'bg-amber-500'}`} />
 
                 <div>
                   <div className="flex items-center justify-between mb-3 border-b border-outline-variant/60 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs">
-                        {swap.personName.trim().substring(0, 1).toUpperCase()}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                        entry.type === 'swap' ? 'bg-primary-container text-on-primary-container' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {entry.type === 'swap' ? entry.personName.trim().substring(0, 1).toUpperCase() : '!'}
                       </div>
                       <div>
-                        <p className="font-label-bold text-sm text-on-surface leading-none">{swap.personName}</p>
-                        <p className="text-[10px] text-on-surface-variant mt-1">Manual Exchange Partner</p>
+                        <p className="font-label-bold text-sm text-on-surface leading-none">
+                          {entry.type === 'swap' ? entry.personName : 'Manual Adjustment'}
+                        </p>
+                        <p className="text-[10px] text-on-surface-variant mt-1">
+                          {entry.type === 'swap' ? 'Manual Exchange Partner' : 'Inventory Correction'}
+                        </p>
                       </div>
                     </div>
                     <span className="text-[10px] text-outline font-medium flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {formatTimestamp(swap.timestamp)}
+                      {formatTimestamp(entry.timestamp)}
                     </span>
                   </div>
 
-                  {/* Stickers traded list grid */}
-                  <div className="grid grid-cols-2 gap-4 my-2 text-xs">
-                    {/* You Gave */}
-                    <div id={`swap-gave-list-${swap.id}`}>
-                      <p className="font-semibold text-[10px] uppercase tracking-wider text-amber-600 mb-1 font-black">You Gave:</p>
-                      {swap.gaveStickers.length === 0 ? (
-                        <p className="text-on-surface-variant italic text-[11px]">No stickers given</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {swap.gaveStickers.map(id => {
-                            const s = stickersMap.get(id);
-                            return (
-                              <span 
-                                id={`gave-tag-${swap.id}-${id}`}
-                                key={id} 
-                                title={s?.name}
-                                className="inline-flex items-center bg-amber-500/10 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold"
-                              >
-                                {id}
-                              </span>
-                            );
-                          })}
+                  {entry.type === 'swap' ? (
+                    <>
+                      {/* Stickers traded list grid */}
+                      <div className="grid grid-cols-2 gap-4 my-2 text-xs">
+                        {/* You Gave */}
+                        <div id={`swap-gave-list-${entry.id}`}>
+                          <p className="font-semibold text-[10px] uppercase tracking-wider text-amber-600 mb-1 font-black">You Gave:</p>
+                          {entry.gaveStickers.length === 0 ? (
+                            <p className="text-on-surface-variant italic text-[11px]">No stickers given</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {entry.gaveStickers.map(id => {
+                                const s = stickersMap.get(id);
+                                return (
+                                  <span 
+                                    id={`gave-tag-${entry.id}-${id}`}
+                                    key={id} 
+                                    title={s?.name}
+                                    className="inline-flex items-center bg-amber-500/10 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold"
+                                  >
+                                    {id}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    {/* You Received */}
-                    <div id={`swap-received-list-${swap.id}`}>
-                      <p className="font-semibold text-[10px] uppercase tracking-wider text-secondary mb-1 font-black">You Received:</p>
-                      {swap.receivedStickers.length === 0 ? (
-                        <p className="text-on-surface-variant italic text-[11px]">No stickers received</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {swap.receivedStickers.map(id => {
-                            const s = stickersMap.get(id);
-                            return (
-                              <span 
-                                id={`received-tag-${swap.id}-${id}`}
-                                key={id} 
-                                title={s?.name}
-                                className="inline-flex items-center bg-secondary/15 text-secondary px-1.5 py-0.5 rounded text-[10px] font-mono font-bold"
-                              >
-                                {id}
-                              </span>
-                            );
-                          })}
+                        {/* You Received */}
+                        <div id={`swap-received-list-${entry.id}`}>
+                          <p className="font-semibold text-[10px] uppercase tracking-wider text-secondary mb-1 font-black">You Received:</p>
+                          {entry.receivedStickers.length === 0 ? (
+                            <p className="text-on-surface-variant italic text-[11px]">No stickers received</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {entry.receivedStickers.map(id => {
+                                const s = stickersMap.get(id);
+                                return (
+                                  <span 
+                                    id={`received-tag-${entry.id}-${id}`}
+                                    key={id} 
+                                    title={s?.name}
+                                    className="inline-flex items-center bg-secondary/15 text-secondary px-1.5 py-0.5 rounded text-[10px] font-mono font-bold"
+                                  >
+                                    {id}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {entry.comment && (
+                        <div className="col-span-2 mt-2 bg-surface-container-low p-2 rounded-lg border border-outline-variant/30 italic text-[10px] text-on-surface-variant">
+                          "{entry.comment}"
                         </div>
                       )}
+                    </>
+                  ) : (
+                    <div className="my-2 bg-amber-50 p-3 rounded-xl border border-amber-200/50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[11px] font-bold text-amber-900 uppercase">Adjustment: {entry.stickerId}</span>
+                        <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${entry.delta > 0 ? 'bg-secondary text-white' : 'bg-amber-600 text-white'}`}>
+                          {entry.delta > 0 ? `+${entry.delta}` : entry.delta}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 italic leading-relaxed">
+                        "{entry.comment}"
+                      </p>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Direct Action buttons */}
                 <div className="mt-4 pt-3.5 border-t border-outline-variant/60 flex justify-end">
                   <button
-                    id={`undo-swap-btn-${swap.id}`}
+                    id={`undo-activity-btn-${entry.id}`}
                     type="button"
-                    onClick={() => handleUndoSwap(swap)}
+                    onClick={() => handleUndoSwap(entry)}
                     className="flex items-center gap-1.5 text-[11px] font-label-bold text-on-surface hover:text-[#ba1a1a] px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors border border-outline-variant"
                   >
                     <RotateCcw className="w-3 h-3" />
-                    Undo Swap Entries
+                    Undo Entry
                   </button>
                 </div>
               </div>
