@@ -270,7 +270,7 @@ export default function App() {
       {toast && (
         <div
           id="global-toast"
-          className={`fixed top-24 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl border flex items-center gap-3 transition-opacity duration-300 pointer-events-none ${
+          className={`fixed top-20 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl border flex items-center gap-3 transition-opacity duration-300 pointer-events-none ${
             toast.type === 'success'
               ? 'bg-secondary-container text-on-secondary-container border-secondary/35'
               : 'bg-error-container text-on-error-container border-error/35'
@@ -285,7 +285,7 @@ export default function App() {
         </div>
       )}
 
-      <header className="w-full h-20 sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-outline-variant/60 flex justify-between items-center px-6 lg:pl-80 shadow-sm leading-none select-none">
+      <header className="w-full h-16 sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-outline-variant/60 flex justify-between items-center px-6 lg:pl-80 shadow-sm leading-none select-none">
         <div className="flex items-center gap-4">
           <button
             id="mobile-drawer-toggle"
@@ -366,9 +366,6 @@ export default function App() {
             <div className="min-w-0">
               <p className="font-headline-md text-sm sm:text-base font-bold text-on-surface truncate leading-tight">
                 Collector Profile
-              </p>
-              <p className="text-[11px] text-on-surface-variant font-body-md truncate mt-0.5">
-                Elite Collector #2026
               </p>
             </div>
           </div>

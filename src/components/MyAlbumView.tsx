@@ -182,9 +182,9 @@ export function MyAlbumView({
         </span>
       </div>
 
-      <div className="relative z-10 w-full flex flex-col gap-6">
+      <div className="relative z-10 w-full flex flex-col gap-4">
         {/* Responsive Filters Bar matching design #5 */}
-        <div id="filters-container" className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant flex flex-col md:flex-row flex-wrap gap-4 items-center justify-between sticky top-[80px] z-30 shadow-sm backdrop-blur-md bg-opacity-95">
+        <div id="filters-container" className="bg-surface-container-low p-3 rounded-2xl border border-outline-variant flex flex-col md:flex-row flex-wrap gap-4 items-center justify-between sticky top-16 z-30 shadow-sm backdrop-blur-md bg-opacity-95">
           <div className="grid grid-cols-2 md:flex md:flex-row gap-3 w-full md:w-auto">
             {/* Country Selector Dropdown */}
             <div className="relative col-span-2 md:col-auto">
