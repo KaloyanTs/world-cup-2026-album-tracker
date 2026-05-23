@@ -6,7 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { CollectionState, Sticker, Team } from '../types';
 import { TEAMS } from '../data';
-import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Camera } from 'lucide-react';
+import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Camera, Users, User } from 'lucide-react';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 
 interface MyAlbumViewProps {
@@ -36,11 +36,6 @@ export function MyAlbumView({
 
   // Photo capture helper
   const handleCapturePhoto = async (stickerId: string) => {
-    if (collection.photos?.[stickerId]) {
-      alert("You can only take one photo per sticker!");
-      return;
-    }
-
     try {
       const image = await CapacitorCamera.getPhoto({
         quality: 90,
@@ -197,7 +192,7 @@ export function MyAlbumView({
                 id="filter-section-dropdown"
                 value={selectedSection}
                 onChange={(e) => setSelectedSection(e.target.value)}
-                className="appearance-none w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-4 pr-10 py-2.5 font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
+                className="appearance-none w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-4 pr-10 h-11 font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
               >
                 <option value="All">All Categories</option>
                 <option value="Opening">General & Hosts</option>
@@ -219,7 +214,7 @@ export function MyAlbumView({
                 id="filter-position-dropdown"
                 value={selectedPosition}
                 onChange={(e) => setSelectedPosition(e.target.value)}
-                className="appearance-none w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-4 pr-10 py-2.5 font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
+                className="appearance-none w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-4 pr-10 h-11 font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
               >
                 <option value="All">All Positions</option>
                 <option value="Emblem">Badge / Emblem</option>
@@ -239,7 +234,7 @@ export function MyAlbumView({
                 id="filter-group-dropdown"
                 value={selectedGroup}
                 onChange={(e) => setSelectedGroup(e.target.value)}
-                className="appearance-none w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-4 pr-10 py-2.5 font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
+                className="appearance-none w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-4 pr-10 h-11 font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
               >
                 <option value="All">All Groups</option>
                 {Array.from(new Set(TEAMS.map(t => t.group))).sort().map(grp => (
@@ -252,12 +247,12 @@ export function MyAlbumView({
 
           <div className="flex gap-3 w-full md:w-auto mt-2 md:mt-0">
             {/* Search query box */}
-            <div className="relative flex-1 md:w-60">
+            <div className="relative flex-1 md:w-80">
               <input 
                 id="search-stickers-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                className="w-full pl-9 pr-4 h-11 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 placeholder="Search player or code..."
                 type="text"
               />
@@ -270,13 +265,13 @@ export function MyAlbumView({
                 id="sort-stickers-dropdown"
                 value={selectedSort}
                 onChange={(e) => setSelectedSort(e.target.value)}
-                className="appearance-none w-full bg-primary-container text-on-primary-container border-none rounded-xl pl-4 pr-10 py-2.5 font-label-bold text-xs focus:ring-2 focus:ring-primary focus:outline-none transition-all cursor-pointer"
+                className="appearance-none w-full bg-surface-container-lowest border border-outline-variant rounded-xl pl-4 pr-10 h-11 font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all cursor-pointer"
               >
                 <option value="Album Order">Sort: Album Order</option>
-                <option value="Most Repeats">Most Repeats</option>
-                <option value="Most Needed">Most Needed</option>
+                <option value="Most Repeats">Sort: Most Repeats</option>
+                <option value="Most Needed">Sort: Most Needed</option>
               </select>
-              <Filter className="w-3.5 h-3.5 text-on-primary-container absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Filter className="w-4 h-4 text-on-surface-variant absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -371,7 +366,7 @@ export function MyAlbumView({
                   {/* Sticker Display Grids matching design guidelines */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 relative z-10">
                     {section.stickers.map((sticker) => {
-                      const count = collection[sticker.id] || 0;
+                      const count = collection.counts[sticker.id] || 0;
                       const hasIt = count > 0;
                       const isShiny = sticker.isShiny;
 
@@ -429,9 +424,9 @@ export function MyAlbumView({
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <span className={`material-symbols-outlined text-4xl ${isShiny ? 'text-tertiary' : 'text-primary/60'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                                    {sticker.position === 'Emblem' ? 'shield' : sticker.position === 'Team Photo' ? 'groups' : 'person'}
-                                  </span>
+                                  <div className={`flex items-center justify-center ${isShiny ? 'text-tertiary' : 'text-primary/60'}`}>
+                                    {sticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : sticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
+                                  </div>
                                 )}
                                 {isShiny && (
                                   <div className="absolute top-2 left-2 text-gold animate-bounce">
@@ -441,9 +436,9 @@ export function MyAlbumView({
                               </div>
                             ) : (
                               <div className="absolute inset-0 flex flex-col items-center justify-center text-outline">
-                                <span className="material-symbols-outlined text-4xl opacity-35" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                  {sticker.position === 'Emblem' ? 'shield' : sticker.position === 'Team Photo' ? 'groups' : 'person'}
-                                </span>
+                                <div className="opacity-35">
+                                  {sticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : sticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -521,14 +516,14 @@ export function MyAlbumView({
                 selectedStickerDetail.isShiny ? 'bg-gradient-to-b from-amber-50 to-amber-100 border-2 border-tertiary-fixed' : 'bg-surface-container-lowest border border-outline-variant'
               }`}>
                 <div className="w-full relative flex-grow rounded-xl overflow-hidden bg-surface-container-high flex items-center justify-center">
-                  {(collection[selectedStickerDetail.id] || 0) > 0 ? (
-                    <span className={`material-symbols-outlined text-5xl ${selectedStickerDetail.isShiny ? 'text-tertiary' : 'text-primary/60'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                      {selectedStickerDetail.position === 'Emblem' ? 'shield' : selectedStickerDetail.position === 'Team Photo' ? 'groups' : 'person'}
-                    </span>
+                  {(collection.counts[selectedStickerDetail.id] || 0) > 0 ? (
+                    <div className={`flex justify-center mb-8 ${selectedStickerDetail.isShiny ? 'text-tertiary' : 'text-primary/60'}`}>
+                      {selectedStickerDetail.position === 'Emblem' ? <Shield className="w-16 h-16" /> : selectedStickerDetail.position === 'Team Photo' ? <Users className="w-16 h-16" /> : <User className="w-16 h-16" />}
+                    </div>
                   ) : (
-                    <span className="material-symbols-outlined text-4xl text-outline opacity-40">
-                      {selectedStickerDetail.position === 'Emblem' ? 'shield' : selectedStickerDetail.position === 'Team Photo' ? 'groups' : 'person'}
-                    </span>
+                    <div className="text-outline-variant opacity-40">
+                      {selectedStickerDetail.position === 'Emblem' ? <Shield className="w-10 h-10" /> : selectedStickerDetail.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
+                    </div>
                   )}
                 </div>
                 <div className="text-center py-2.5 px-1 w-full shrink-0 select-none">
@@ -545,8 +540,8 @@ export function MyAlbumView({
                 <h4 className="font-headline-md text-base font-bold text-on-surface">{selectedStickerDetail.name}</h4>
                 <p className="font-body-md text-xs text-on-surface-variant max-w-xs mx-auto mt-1 leading-relaxed">
                   {selectedStickerDetail.isShiny ? 'Special metallic foil collectible.' : 'Standard sticker collection card.'}
-                  {(collection[selectedStickerDetail.id] || 0) > 0 
-                    ? ` You own ${collection[selectedStickerDetail.id]} copies of this sticker.` 
+                  {(collection.counts[selectedStickerDetail.id] || 0) > 0 
+                    ? ` You own ${collection.counts[selectedStickerDetail.id]} copies of this sticker.` 
                     : ' You do not own this sticker yet. Mark as collected below.'}
                 </p>
               </div>
@@ -589,14 +584,14 @@ export function MyAlbumView({
                 </button>
               </div>
 
-              {/* Take Sticker Photo */}
-              {(collection.counts[selectedStickerDetail.id] || 0) > 0 && !collection.photos?.[selectedStickerDetail.id] && (
+              {/* Take Sticker Photo / Retake Photo */}
+              {(collection.counts[selectedStickerDetail.id] || 0) > 0 && (
                 <button
                   className="flex items-center justify-center gap-2 text-xs font-label-bold text-primary hover:bg-primary/5 px-4 py-2 mt-2 w-full rounded-xl transition-all cursor-pointer"
                   onClick={() => handleCapturePhoto(selectedStickerDetail.id)}
                 >
                   <Camera className="w-4 h-4" />
-                  Take Sticker Photo
+                  {collection.photos?.[selectedStickerDetail.id] ? "Change Sticker Photo" : "Take Sticker Photo"}
                 </button>
               )}
 

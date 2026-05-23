@@ -13,15 +13,14 @@ import {
   Truck, 
   CheckCircle,
   Gift,
-  ArrowUpDown
+  ArrowUpDown,
+  AlertCircle
 } from 'lucide-react';
 
 interface DashboardViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
   quickAddStickers: (input: string) => { successes: string[]; errors: string[] };
-  pendingArrivals: Array<{ id: string; stickerId: string; title: string; subtitle: string; rarityColor: string }>;
-  confirmArrival: (arrivalId: string, stickerId: string) => void;
   setActiveTab: (tab: string) => void;
 }
 
@@ -29,8 +28,6 @@ export function DashboardView({
   collection,
   allStickers,
   quickAddStickers,
-  pendingArrivals,
-  confirmArrival,
   setActiveTab
 }: DashboardViewProps) {
   const [quickAddVal, setQuickAddVal] = useState('');
@@ -86,7 +83,7 @@ export function DashboardView({
           {toastMessage.type === 'success' ? (
             <CheckCircle className="w-5 h-5 text-secondary animate-bounce" />
           ) : (
-            <span className="material-symbols-outlined text-error">warning</span>
+            <AlertCircle className="w-5 h-5 text-error" />
           )}
           <span className="font-label-bold text-sm">{toastMessage.text}</span>
         </div>
@@ -165,7 +162,7 @@ export function DashboardView({
       </section>
 
       {/* Inputs & Pending Actions */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <section className="flex flex-col gap-8 max-w-2xl mx-auto">
         {/* Quick Add Stickers Box */}
         <div id="quick-add-section" className="bg-surface-container-low p-6 lg:p-8 rounded-[32px] border border-outline-variant shadow-sm flex flex-col justify-between">
           <div>
@@ -197,52 +194,6 @@ export function DashboardView({
               Add to Collection
             </button>
           </form>
-        </div>
-
-        {/* Pending Arrivals Box */}
-        <div id="pending-arrivals-section" className="bg-surface-container-low p-6 lg:p-8 rounded-[32px] border border-outline-variant shadow-sm flex flex-col">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-secondary/10 p-2.5 rounded-full text-secondary">
-              <Truck className="w-6 h-6" />
-            </div>
-            <h3 className="font-headline-md text-xl font-bold text-on-surface">Pending Arrivals</h3>
-          </div>
-          
-          <div className="space-y-3 flex-1 overflow-y-auto max-h-[220px] scrollbar-hide pr-1">
-            {pendingArrivals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center text-on-surface-variant h-full">
-                <span className="material-symbols-outlined text-4xl text-outline opacity-40 mb-2">local_shipping</span>
-                <p className="font-label-bold text-sm text-outline">No pending shipments</p>
-                <p className="text-xs text-outline mt-1 px-4 font-body-md">Use the trading matcher to propose card exchanges with NPCs.</p>
-              </div>
-            ) : (
-              pendingArrivals.map((arrival) => (
-                <div 
-                  id={`arrival-${arrival.id}`}
-                  key={arrival.id} 
-                  className="flex items-center justify-between p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant hover:border-outline shadow-sm transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-11 h-14 ${arrival.rarityColor} rounded-lg flex items-center justify-center font-label-bold text-xs shadow-inner shrink-0 leading-none`}>
-                      {arrival.stickerId}
-                    </div>
-                    <div>
-                      <p className="font-label-bold text-sm text-on-surface">{arrival.title}</p>
-                      <p className="text-xs text-on-surface-variant font-body-md">{arrival.subtitle}</p>
-                    </div>
-                  </div>
-                  <button 
-                    id={`confirm-arrival-btn-${arrival.id}`}
-                    onClick={() => confirmArrival(arrival.id, arrival.stickerId)}
-                    className="text-primary hover:bg-primary/5 p-2 rounded-lg flex items-center gap-1 transition-all font-label-bold text-xs shrink-0"
-                  >
-                    <CheckCircle className="w-4 h-4 text-primary" />
-                    Confirm Receipt
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
         </div>
       </section>
     </div>

@@ -6,7 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { CollectionState, Sticker, Team } from '../types';
 import { TEAMS } from '../data';
-import { Shield, Sparkles, ChevronRight, Search, Trophy, CheckSquare } from 'lucide-react';
+import { Shield, Sparkles, ChevronRight, Search, Trophy, CheckSquare, Flag } from 'lucide-react';
 
 interface TeamsViewProps {
   collection: CollectionState;
@@ -104,7 +104,7 @@ export function TeamsView({
       <div className="flex flex-col gap-10">
         {Object.keys(groupedTeams).length === 0 ? (
           <div className="bg-surface-container-lowest p-12 rounded-3xl border border-dashed border-outline-variant text-center flex flex-col items-center justify-center">
-            <span className="material-symbols-outlined text-4xl text-outline mb-2 opacity-40">flag_circle</span>
+            <Flag className="w-10 h-10 text-outline mb-2 opacity-40" />
             <p className="font-label-bold text-sm text-outline">No teams match your search</p>
             <p className="text-xs text-outline mt-1 font-body-md">Try typing a simplified country name or check spelling.</p>
           </div>

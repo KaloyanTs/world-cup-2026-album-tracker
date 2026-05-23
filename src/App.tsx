@@ -21,14 +21,17 @@ import {
   BookOpen,
   ArrowUpDown,
   Flag,
-  Bell,
   Search,
   Settings,
   HelpCircle,
   Menu,
   X,
-  AlertCircle
+  AlertCircle,
+  CheckCircle,
+  Camera as CameraIcon,
+  Upload
 } from 'lucide-react';
+import { Camera, CameraResultType } from '@capacitor/camera';
 
 const normalizeCollectionState = (value: unknown): CollectionState => {
   const fallback = generateInitialCollectionState();
@@ -57,6 +60,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedTeamCode, setSelectedTeamCode] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userProfilePic, setUserProfilePic] = useState<string>(() => {
+    return localStorage.getItem('panini_wc26_user_avatar_v1') || "https://lh3.googleusercontent.com/aida-public/AB6AXuAMkBDm1WZc-ihUAp0uniKnMwhg2lnQOtYe9WRfgvHN0gdvikRehMSMsa6GgbcbRKMTjWpIZN8uUUn2pFou1NXsMRA2ozELjQ5h9WLORNzTe1Hh7YDYJaue7J4yK1IhQYBTtsDR0UAIkzcTHMPPDZnlDUXtJIloBtOTok_eXK-fVWdKSj0rIFUMJ4bOZQ0SUhGooZa_-wvk1w7TM4VtEEut707O0LX89irFkgt34m-u-9qj5zLp6jERT_UGZUeE8fp8V5z_-SZQRCkV";
+  });
+
+  useEffect(() => {
+    localStorage.setItem('panini_wc26_user_avatar_v1', userProfilePic);
+  }, [userProfilePic]);
 
   const allStickers = useMemo(() => generateAllStickers(), []);
 
@@ -77,49 +87,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('panini_wc26_collection_v2', JSON.stringify(collection));
   }, [collection]);
-
-  const [pendingArrivals, setPendingArrivals] = useState<
-    Array<{
-      id: string;
-      stickerId: string;
-      title: string;
-      subtitle: string;
-      rarityColor: string;
-    }>
-  >(() => {
-    const stored = localStorage.getItem('panini_wc26_pending_arrivals_v2');
-
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        console.error('Failed to parse pending arrivals:', e);
-      }
-    }
-
-    return [
-      {
-        id: 'arr-1',
-        stickerId: 'ARG-10',
-        title: 'Lionel Messi',
-        subtitle: 'Trade from @Alex88',
-        rarityColor:
-          'bg-gradient-to-b from-amber-50 to-amber-100 border-2 border-tertiary text-tertiary-container'
-      },
-      {
-        id: 'arr-2',
-        stickerId: 'ENG-10',
-        title: 'Bukayo Saka',
-        subtitle: 'Trade from @KylianFan',
-        rarityColor: 'bg-surface-dim text-on-surface-variant'
-      }
-    ];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('panini_wc26_pending_arrivals_v2', JSON.stringify(pendingArrivals));
-  }, [pendingArrivals]);
 
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>(() => {
     const stored = localStorage.getItem('panini_wc26_activity_log_v1');
@@ -229,14 +196,6 @@ export default function App() {
         photos: { ...(prev.photos ?? {}) }
       };
 
-      if (next.photos[stickerId]) {
-        addToast({
-          type: 'error',
-          text: "A photo for this sticker already exists and can't be replaced!"
-        });
-        return prev;
-      }
-
       next.photos[stickerId] = photoUrl;
       return next;
     });
@@ -280,49 +239,6 @@ export default function App() {
     return { successes, errors };
   };
 
-  const addArrivalSticker = (stickerId: string, traderName: string) => {
-    const stickersLookup = new Map<string, Sticker>(allStickers.map(s => [s.id, s]));
-    const s = stickersLookup.get(stickerId);
-
-    if (!s) return;
-
-    const newArr = {
-      id: `arr-${Date.now()}-${Math.random()}`,
-      stickerId,
-      title: s.name,
-      subtitle: `Swapped with ${traderName}`,
-      rarityColor: s.isShiny
-        ? 'bg-gradient-to-b from-amber-50 to-amber-100 text-tertiary-container border border-tertiary'
-        : 'bg-surface-dim text-on-surface-variant'
-    };
-
-    setPendingArrivals(prev => [newArr, ...prev]);
-  };
-
-  const confirmArrivalReceipt = (arrivalId: string, stickerId: string) => {
-    setCollection(prev => {
-      const next = {
-        ...prev,
-        counts: { ...(prev.counts ?? {}) },
-        photos: { ...(prev.photos ?? {}) }
-      };
-
-      next.counts[stickerId] = (next.counts[stickerId] || 0) + 1;
-
-      return next;
-    });
-
-    setPendingArrivals(prev => prev.filter(a => a.id !== arrivalId));
-
-    const stickersLookup = new Map<string, Sticker>(allStickers.map(s => [s.id, s]));
-    const s = stickersLookup.get(stickerId);
-
-    addToast({
-      type: 'success',
-      text: `Shipment received! Sticked ${s?.name || stickerId} directly into your album!`
-    });
-  };
-
   const totalStickersCount = allStickers.length;
   const collectionCounts = collection.counts ?? {};
 
@@ -342,7 +258,6 @@ export default function App() {
       )
     ) {
       setCollection(generateInitialCollectionState());
-      setPendingArrivals([]);
       addToast({
         type: 'success',
         text: 'Your collection has been reset.'
@@ -362,11 +277,9 @@ export default function App() {
           }`}
         >
           {toast.type === 'success' ? (
-            <span className="material-symbols-outlined text-secondary animate-bounce">
-              check_circle
-            </span>
+            <CheckCircle className="w-6 h-6 text-secondary animate-bounce" />
           ) : (
-            <span className="material-symbols-outlined text-error">warning</span>
+            <AlertCircle className="w-6 h-6 text-error" />
           )}
           <span className="font-label-bold text-sm">{toast.text}</span>
         </div>
@@ -401,28 +314,32 @@ export default function App() {
             <Search className="w-5 h-5" />
           </button>
 
-          <button
-            onClick={() => {
-              setActiveTab('dashboard');
-              addToast({
-                type: 'success',
-                text: 'Your trading pipeline is healthy. No new alerts.'
-              });
+          <button 
+            className="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden border-2 border-primary ml-2 select-none shadow-inner cursor-pointer"
+            onClick={async () => {
+              try {
+                const image = await Camera.getPhoto({
+                  quality: 90,
+                  allowEditing: false,
+                  resultType: CameraResultType.DataUrl
+                });
+                if (image.dataUrl) {
+                  setUserProfilePic(image.dataUrl);
+                  addToast({ type: 'success', text: 'Profile picture updated!' });
+                }
+              } catch (e) {
+                console.log('Skipped taking picture', e);
+              }
             }}
-            className="p-2.5 rounded-full hover:bg-surface-container-high transition-all text-on-surface-variant hover:text-on-surface relative"
+            title="Change Profile Picture"
           >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#ba1a1a] rounded-full ring-2 ring-white" />
-          </button>
-
-          <div className="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden border-2 border-primary ml-2 select-all shadow-inner">
             <img
               alt="Collector Avatar"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMkBDm1WZc-ihUAp0uniKnMwhg2lnQOtYe9WRfgvHN0gdvikRehMSMsa6GgbcbRKMTjWpIZN8uUUn2pFou1NXsMRA2ozELjQ5h9WLORNzTe1Hh7YDYJaue7J4yK1IhQYBTtsDR0UAIkzcTHMPPDZnlDUXtJIloBtOTok_eXK-fVWdKSj0rIFUMJ4bOZQ0SUhGooZa_-wvk1w7TM4VtEEut707O0LX89irFkgt34m-u-9qj5zLp6jERT_UGZUeE8fp8V5z_-SZQRCkV"
+              src={userProfilePic}
             />
-          </div>
+          </button>
         </div>
       </header>
 
@@ -443,7 +360,7 @@ export default function App() {
                 alt="Profile Avatar"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhTkWznc3dLB34CLgJarl_cMpPXVmBFUZeGA50KOqdCwqmuX9krMVQa2GP_prr_9CH55qEgslfvoJwrPdTl6nXrkZr04SWaX-inAsL_NMJFdACLQza9jRx_c3I8TWgoBzVANcylL45gfPk4HDdVNvj5jRvAfeBc6BP-35WJ7fh5hQ-tZI4-AXGkG_VB_SXOTibbtQgEoTMRdj18bPJVJBzk0jWfHDmtOCQe5X6Fdl5scECw7RT0a8pe7L6Swj8ocTn9XU1KvqDTij_"
+                src={userProfilePic}
               />
             </div>
             <div className="min-w-0">
@@ -592,8 +509,6 @@ export default function App() {
               collection={collection}
               allStickers={allStickers}
               quickAddStickers={handleQuickAddStickers}
-              pendingArrivals={pendingArrivals}
-              confirmArrival={confirmArrivalReceipt}
               setActiveTab={setActiveTab}
             />
           )}

@@ -14,7 +14,9 @@ import {
   AlertCircle,
   Plus,
   Minus,
-  Camera as CameraIcon
+  Camera as CameraIcon,
+  User,
+  X
 } from 'lucide-react';
 import { Camera, CameraResultType } from '@capacitor/camera';
 
@@ -232,9 +234,9 @@ export function TeamDetailsView({
                     </div>
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-outline">
-                      <span className="material-symbols-outlined text-4xl opacity-35" style={{ fontVariationSettings: "'FILL' 1" }}>
-                        {sticker.position === 'Emblem' ? 'shield' : sticker.position === 'Team Photo' ? 'groups' : 'person'}
-                      </span>
+                      <div className="opacity-35">
+                        {sticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : sticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -298,7 +300,7 @@ export function TeamDetailsView({
                 onClick={() => setSelectedSticker(null)}
                 className="text-on-surface-variant hover:text-on-surface rounded-full p-1 hover:bg-surface-variant transition-colors"
               >
-                <span className="material-symbols-outlined select-none block">close</span>
+                <X className="w-5 h-5 block" />
               </button>
             </div>
 
@@ -324,9 +326,9 @@ export function TeamDetailsView({
                       } 
                     />
                   ) : (
-                    <span className="material-symbols-outlined text-4xl text-outline opacity-40">
-                      {selectedSticker.position === 'Emblem' ? 'shield' : selectedSticker.position === 'Team Photo' ? 'groups' : 'person'}
-                    </span>
+                    <div className="text-outline opacity-40">
+                      {selectedSticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : selectedSticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
+                    </div>
                   )}
                 </div>
                 <div className="text-center py-2.5 px-1 w-full shrink-0 select-none">
@@ -349,8 +351,8 @@ export function TeamDetailsView({
                 </p>
               </div>
 
-              {/* Photo Capture input & logic for owned stickers missing photo */}
-              {(collection.counts[selectedSticker.id] || 0) > 0 && !collection.photos?.[selectedSticker.id] && (
+              {/* Photo Capture input & logic for owned stickers */}
+              {(collection.counts[selectedSticker.id] || 0) > 0 && (
                 <button
                   className="flex items-center gap-2 text-xs font-label-bold text-primary hover:bg-primary/5 px-4 py-2 rounded-xl transition-all cursor-pointer"
                   onClick={async () => {
@@ -369,7 +371,7 @@ export function TeamDetailsView({
                   }}
                 >
                   <CameraIcon className="w-4 h-4" />
-                  Take Sticker Photo
+                  {collection.photos?.[selectedSticker.id] ? "Change Sticker Photo" : "Take Sticker Photo"}
                 </button>
               )}
 
