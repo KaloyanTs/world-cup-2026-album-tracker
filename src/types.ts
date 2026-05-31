@@ -35,5 +35,4 @@ export interface TradeOffer {
 
 export interface CollectionState {
   counts: { [stickerId: string]: number }; // stickerId -> owned count (0 = missing, 1 = owned, >1 has duplicates)
-  photos?: { [stickerId: string]: string }; // stickerId -> photo URL (taken once)
 }

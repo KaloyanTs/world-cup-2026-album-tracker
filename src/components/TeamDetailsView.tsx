@@ -14,18 +14,15 @@ import {
   AlertCircle,
   Plus,
   Minus,
-  Camera as CameraIcon,
   User,
   X
 } from 'lucide-react';
-import { Camera, CameraResultType } from '@capacitor/camera';
 
 interface TeamDetailsViewProps {
   team: Team;
   collection: CollectionState;
   allStickers: Sticker[];
-  updateStickerCount: (stickerId: string, delta: number, comment?: string, photoUrl?: string) => void;
-  saveStickerPhoto: (stickerId: string, photoUrl: string) => void;
+  updateStickerCount: (stickerId: string, delta: number, comment?: string) => void;
   onBack: () => void;
 }
 
@@ -34,7 +31,6 @@ export function TeamDetailsView({
   collection,
   allStickers,
   updateStickerCount,
-  saveStickerPhoto,
   onBack
 }: TeamDetailsViewProps) {
   // Grab the 20 stickers for this team
@@ -71,8 +67,6 @@ export function TeamDetailsView({
         
         {/* Dynamic banner with country identities */}
         <div id="team-banner-card" className="md:col-span-2 bg-surface-container-lowest rounded-3xl p-6 md:p-8 shadow-sm border border-outline-variant relative overflow-hidden flex flex-col justify-between min-h-[170px]">
-          {/* Decorative Stadium Wallpaper backdrop */}
-          <div className="absolute inset-0 opacity-15 bg-no-repeat bg-cover bg-center pointer-events-none" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80')` }} />
           
           <div className="relative z-10 flex items-start gap-5">
             <span className="text-6xl md:text-5-xl shrink-0 p-1.5 bg-white rounded-2xl shadow-sm border border-outline-variant leading-none" role="img" aria-label={team.name}>
@@ -207,38 +201,16 @@ export function TeamDetailsView({
                       : 'bg-surface-container-low outline-outline-variant/30'
                     : 'bg-surface-container-high outline-dashed outline-outline-variant/30'
                 }`}>
-                  {collection.photos?.[sticker.id] ? (
-                    <img 
-                      src={collection.photos[sticker.id]} 
-                      alt={sticker.name}
-                      className="w-full h-full object-cover object-top select-none"
-                    />
-                  ) : hasIt ? (
-                    <div className="w-full h-full relative">
-                      <img 
-                        alt="" 
-                        className={`w-full h-full object-cover object-top select-none ${
-                          isShiny ? 'contrast-[1.12] saturate-[1.2]' : ''
-                        }`}
-                        src={
-                          isShiny 
-                            ? `https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=70&h=180` // Golden sheen
-                            : `https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&q=70&h=180` // Pitch green illumination
-                        } 
-                      />
-                      {isShiny && (
-                        <div className="absolute top-2 left-2 animate-pulse">
-                          <Sparkles className="w-4 h-4 text-tertiary-fixed-dim" />
-                        </div>
-                      )}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-outline">
+                    <div className={hasIt ? (isShiny ? 'text-tertiary' : 'text-primary/60') : 'opacity-35'}>
+                      {sticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : sticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
                     </div>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-outline">
-                      <div className="opacity-35">
-                        {sticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : sticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
+                    {hasIt && isShiny && (
+                      <div className="absolute top-2 left-2 animate-pulse">
+                        <Sparkles className="w-4 h-4 text-tertiary-fixed-dim" />
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 {/* Labels description Footer inside card */}
@@ -309,27 +281,9 @@ export function TeamDetailsView({
                 selectedSticker.isShiny ? 'bg-gradient-to-b from-amber-50 to-amber-100 border-2 border-tertiary-fixed' : 'bg-surface-container-lowest border border-outline-variant'
               }`}>
                 <div className="w-full relative flex-grow rounded-xl overflow-hidden bg-surface-container-high flex items-center justify-center">
-                  {collection.photos?.[selectedSticker.id] ? (
-                    <img 
-                      src={collection.photos[selectedSticker.id]} 
-                      alt={selectedSticker.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (collection.counts[selectedSticker.id] || 0) > 0 ? (
-                    <img 
-                      alt="" 
-                      className="w-full h-full object-cover" 
-                      src={
-                        selectedSticker.isShiny 
-                          ? `https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=70&h=180`
-                          : `https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&q=70&h=180`
-                      } 
-                    />
-                  ) : (
-                    <div className="text-outline opacity-40">
-                      {selectedSticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : selectedSticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
-                    </div>
-                  )}
+                  <div className={(collection.counts[selectedSticker.id] || 0) > 0 ? (selectedSticker.isShiny ? 'text-tertiary' : 'text-primary/60') : 'text-outline opacity-40'}>
+                    {selectedSticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : selectedSticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
+                  </div>
                 </div>
                 <div className="text-center py-2.5 px-1 w-full shrink-0 select-none">
                   <p className={`font-label-bold text-xs truncate leading-none ${selectedSticker.isShiny ? 'text-tertiary' : 'text-on-surface'}`}>
@@ -350,30 +304,6 @@ export function TeamDetailsView({
                     : ' You are missing this sticker. Tap the increment (+) controller to acquire.'}
                 </p>
               </div>
-
-              {/* Photo Capture input & logic for owned stickers */}
-              {(collection.counts[selectedSticker.id] || 0) > 0 && (
-                <button
-                  className="flex items-center gap-2 text-xs font-label-bold text-primary hover:bg-primary/5 px-4 py-2 rounded-xl transition-all cursor-pointer"
-                  onClick={async () => {
-                    try {
-                      const image = await Camera.getPhoto({
-                        quality: 90,
-                        allowEditing: false,
-                        resultType: CameraResultType.DataUrl
-                      });
-                      if (image.dataUrl) {
-                        saveStickerPhoto(selectedSticker.id, image.dataUrl);
-                      }
-                    } catch (e) {
-                      console.log('Skipped taking picture', e);
-                    }
-                  }}
-                >
-                  <CameraIcon className="w-4 h-4" />
-                  {collection.photos?.[selectedSticker.id] ? "Change Sticker Photo" : "Take Sticker Photo"}
-                </button>
-              )}
 
               {/* Adjusters */}
               <div className="flex items-center gap-6 mt-2 relative z-10 w-full justify-center">

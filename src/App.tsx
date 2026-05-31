@@ -28,10 +28,13 @@ import {
   X,
   AlertCircle,
   CheckCircle,
-  Camera as CameraIcon,
-  Upload
+  Download,
+  Copy,
+  FileJson,
+  User
 } from 'lucide-react';
-import { Camera, CameraResultType } from '@capacitor/camera';
+import { Share } from '@capacitor/share';
+import { Clipboard } from '@capacitor/clipboard';
 
 const normalizeCollectionState = (value: unknown): CollectionState => {
   const fallback = generateInitialCollectionState();
@@ -49,10 +52,6 @@ const normalizeCollectionState = (value: unknown): CollectionState => {
       parsed.counts && typeof parsed.counts === 'object'
         ? parsed.counts
         : fallback.counts ?? {},
-    photos:
-      parsed.photos && typeof parsed.photos === 'object'
-        ? parsed.photos
-        : fallback.photos ?? {},
   };
 };
 
@@ -60,15 +59,109 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedTeamCode, setSelectedTeamCode] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userProfilePic, setUserProfilePic] = useState<string>(() => {
-    return localStorage.getItem('panini_wc26_user_avatar_v1') || "https://lh3.googleusercontent.com/aida-public/AB6AXuAMkBDm1WZc-ihUAp0uniKnMwhg2lnQOtYe9WRfgvHN0gdvikRehMSMsa6GgbcbRKMTjWpIZN8uUUn2pFou1NXsMRA2ozELjQ5h9WLORNzTe1Hh7YDYJaue7J4yK1IhQYBTtsDR0UAIkzcTHMPPDZnlDUXtJIloBtOTok_eXK-fVWdKSj0rIFUMJ4bOZQ0SUhGooZa_-wvk1w7TM4VtEEut707O0LX89irFkgt34m-u-9qj5zLp6jERT_UGZUeE8fp8V5z_-SZQRCkV";
-  });
-
-  useEffect(() => {
-    localStorage.setItem('panini_wc26_user_avatar_v1', userProfilePic);
-  }, [userProfilePic]);
+  const [showExportDupsModal, setShowExportDupsModal] = useState(false);
 
   const allStickers = useMemo(() => generateAllStickers(), []);
+
+  const getSortedStickers = (stickers: Sticker[]) => {
+    return [...stickers].sort((a, b) => {
+      // 1. Panini Logo 00 first
+      if (a.id === "00") return -1;
+      if (b.id === "00") return 1;
+
+      const aIsFwc = a.id.startsWith("FWC-");
+      const bIsFwc = b.id.startsWith("FWC-");
+
+      // 2. FWC-1 to FWC-8 (Tournament info & Hosts)
+      if (aIsFwc && !bIsFwc) {
+        const num = parseInt(a.id.split("-")[1]);
+        return num <= 8 ? -1 : 1;
+      }
+      if (!aIsFwc && bIsFwc) {
+        const num = parseInt(b.id.split("-")[1]);
+        return num <= 8 ? 1 : -1;
+      }
+      if (aIsFwc && bIsFwc) {
+        const aNum = parseInt(a.id.split("-")[1]);
+        const bNum = parseInt(b.id.split("-")[1]);
+        
+        // Handle FWC-1..8 vs FWC-9..19
+        const aCategory = aNum <= 8 ? 0 : 2;
+        const bCategory = bNum <= 8 ? 0 : 2;
+        
+        if (aCategory !== bCategory) return aCategory - bCategory;
+        return aNum - bNum;
+      }
+
+      // 3. Teams (by TEAMS array position)
+      if (a.teamCode && b.teamCode) {
+        if (a.teamCode === b.teamCode) {
+          return (a.number || 0) - (b.number || 0);
+        }
+        const aIdx = TEAMS.findIndex(t => t.code === a.teamCode);
+        const bIdx = TEAMS.findIndex(t => t.code === b.teamCode);
+        return aIdx - bIdx;
+      }
+
+      return 0;
+    });
+  };
+
+  const handleExportAll = async () => {
+    const sorted = getSortedStickers(allStickers);
+    const data = sorted.map(s => ({
+      id: s.id,
+      name: s.name,
+      count: collection.counts[s.id] || 0
+    }));
+
+    const json = JSON.stringify(data, null, 2);
+    try {
+      await Share.share({
+        title: 'WC26 Album - Full Export',
+        text: json,
+        dialogTitle: 'Export All Stickers'
+      });
+    } catch (e) {
+      console.error('Export failed', e);
+      addToast({ type: 'error', text: 'Export failed' });
+    }
+  };
+
+  const handleExportDuplicates = async (format: 'json' | 'clipboard') => {
+    const sorted = getSortedStickers(allStickers);
+    const dups = sorted
+      .filter(s => (collection.counts[s.id] || 0) > 1)
+      .map(s => ({
+        id: s.id,
+        name: s.name,
+        duplicates: (collection.counts[s.id] || 0) - 1
+      }));
+
+    if (format === 'json') {
+      const json = JSON.stringify(dups, null, 2);
+      try {
+        await Share.share({
+          title: 'WC26 Album - Duplicates Export',
+          text: json,
+          dialogTitle: 'Export Duplicates'
+        });
+      } catch (e) {
+        addToast({ type: 'error', text: 'Export failed' });
+      }
+    } else {
+      const list: string[] = [];
+      dups.forEach(d => {
+        for (let i = 0; i < d.duplicates; i++) {
+          list.push(d.id);
+        }
+      });
+      const text = list.join(', ');
+      await Clipboard.write({ string: text });
+      addToast({ type: 'success', text: 'Duplicates copied to clipboard!' });
+    }
+    setShowExportDupsModal(false);
+  };
 
   const [collection, setCollection] = useState<CollectionState>(() => {
     const stored = localStorage.getItem('panini_wc26_collection_v2');
@@ -120,8 +213,7 @@ export default function App() {
   const updateStickerCount = (
     stickerId: string,
     delta: number,
-    comment?: string,
-    photoUrl?: string
+    comment?: string
   ) => {
     const stickersLookup = new Map<string, Sticker>(allStickers.map(s => [s.id, s]));
     const target = stickersLookup.get(stickerId);
@@ -151,18 +243,13 @@ export default function App() {
     setCollection(prev => {
       const next = {
         ...prev,
-        counts: { ...(prev.counts ?? {}) },
-        photos: { ...(prev.photos ?? {}) }
+        counts: { ...(prev.counts ?? {}) }
       };
 
       const currentVal = next.counts[stickerId] || 0;
       const nextVal = Math.max(0, currentVal + delta);
 
       next.counts[stickerId] = nextVal;
-
-      if (photoUrl && !next.photos[stickerId]) {
-        next.photos[stickerId] = photoUrl;
-      }
 
       if (delta > 0 && currentVal === 0) {
         addToast({
@@ -188,21 +275,6 @@ export default function App() {
     }
   };
 
-  const saveStickerPhoto = (stickerId: string, photoUrl: string) => {
-    setCollection(prev => {
-      const next = {
-        ...prev,
-        counts: { ...(prev.counts ?? {}) },
-        photos: { ...(prev.photos ?? {}) }
-      };
-
-      next.photos[stickerId] = photoUrl;
-      return next;
-    });
-
-    addToast({ type: 'success', text: 'Photo captured and saved to your album!' });
-  };
-
   const handleQuickAddStickers = (input: string) => {
     const rawTokens = input
       .split(',')
@@ -217,8 +289,7 @@ export default function App() {
     setCollection(prev => {
       const next = {
         ...prev,
-        counts: { ...(prev.counts ?? {}) },
-        photos: { ...(prev.photos ?? {}) }
+        counts: { ...(prev.counts ?? {}) }
       };
 
       rawTokens.forEach(tok => {
@@ -313,33 +384,6 @@ export default function App() {
           >
             <Search className="w-5 h-5" />
           </button>
-
-          <button 
-            className="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden border-2 border-primary ml-2 select-none shadow-inner cursor-pointer"
-            onClick={async () => {
-              try {
-                const image = await Camera.getPhoto({
-                  quality: 90,
-                  allowEditing: false,
-                  resultType: CameraResultType.DataUrl
-                });
-                if (image.dataUrl) {
-                  setUserProfilePic(image.dataUrl);
-                  addToast({ type: 'success', text: 'Profile picture updated!' });
-                }
-              } catch (e) {
-                console.log('Skipped taking picture', e);
-              }
-            }}
-            title="Change Profile Picture"
-          >
-            <img
-              alt="Collector Avatar"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover"
-              src={userProfilePic}
-            />
-          </button>
         </div>
       </header>
 
@@ -352,22 +396,6 @@ export default function App() {
         <div className="px-6 pb-6 border-b border-outline-variant/60 flex flex-col gap-5 shrink-0 select-none">
           <div className="font-display-lg text-3xl font-extrabold text-primary italic tracking-tighter m-0 leading-none">
             ALBUM
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full border-2 border-primary overflow-hidden shrink-0 shadow-inner">
-              <img
-                alt="Profile Avatar"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-                src={userProfilePic}
-              />
-            </div>
-            <div className="min-w-0">
-              <p className="font-headline-md text-sm sm:text-base font-bold text-on-surface truncate leading-tight">
-                Collector Profile
-              </p>
-            </div>
           </div>
         </div>
 
@@ -463,6 +491,22 @@ export default function App() {
         <div className="px-5 mt-auto border-t border-outline-variant/60 pt-5 shrink-0">
           <div className="flex flex-col gap-1.5 mt-4 select-none">
             <button
+              onClick={handleExportAll}
+              className="flex items-center gap-3 px-4 py-2 hover:bg-surface-variant rounded-xl text-left text-xs font-body-md text-on-surface-variant hover:text-on-surface border-none cursor-pointer outline-none bg-transparent"
+            >
+              <Download className="w-4 h-4 text-primary" />
+              <span>Export All (JSON)</span>
+            </button>
+
+            <button
+              onClick={() => setShowExportDupsModal(true)}
+              className="flex items-center gap-3 px-4 py-2 hover:bg-surface-variant rounded-xl text-left text-xs font-body-md text-on-surface-variant hover:text-on-surface border-none cursor-pointer outline-none bg-transparent"
+            >
+              <Copy className="w-4 h-4 text-secondary" />
+              <span>Export Duplicates</span>
+            </button>
+
+            <button
               onClick={() =>
                 addToast({
                   type: 'success',
@@ -515,7 +559,6 @@ export default function App() {
               collection={collection}
               allStickers={allStickers}
               updateStickerCount={updateStickerCount}
-              saveStickerPhoto={saveStickerPhoto}
               openTeamDetails={teamCode => {
                 setSelectedTeamCode(teamCode);
                 setActiveTab('teams');
@@ -541,7 +584,6 @@ export default function App() {
                 collection={collection}
                 allStickers={allStickers}
                 updateStickerCount={updateStickerCount}
-                saveStickerPhoto={saveStickerPhoto}
                 onBack={() => setSelectedTeamCode(null)}
               />
             ) : (
@@ -624,6 +666,43 @@ export default function App() {
           <span className="font-label-bold text-[10px] tracking-tight">Teams</span>
         </button>
       </nav>
+
+      {showExportDupsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowExportDupsModal(false)} />
+          <div className="relative bg-surface-container-low border border-outline-variant rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="font-display-lg text-xl font-bold text-on-surface mb-2">Export Duplicates</h3>
+            <p className="font-body-md text-sm text-on-surface-variant mb-8">
+              Choose your preferred format for exporting your duplicate stickers.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => handleExportDuplicates('json')}
+                className="flex items-center justify-center gap-3 w-full bg-surface-container-high hover:bg-surface-variant text-on-surface py-4 rounded-2xl font-label-bold transition-all border border-outline-variant/30"
+              >
+                <FileJson className="w-5 h-5 text-primary" />
+                Export as JSON
+              </button>
+              
+              <button
+                onClick={() => handleExportDuplicates('clipboard')}
+                className="flex items-center justify-center gap-3 w-full bg-primary text-on-primary py-4 rounded-2xl font-label-bold shadow-lg shadow-primary/20 active:scale-95 transition-all"
+              >
+                <Copy className="w-5 h-5" />
+                Copy to Clipboard
+              </button>
+              
+              <button
+                onClick={() => setShowExportDupsModal(false)}
+                className="w-full text-center py-2 text-xs font-label-bold text-on-surface-variant hover:text-on-surface mt-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

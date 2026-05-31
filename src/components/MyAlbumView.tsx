@@ -6,14 +6,12 @@
 import React, { useState, useMemo } from 'react';
 import { CollectionState, Sticker, Team } from '../types';
 import { TEAMS } from '../data';
-import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Camera, Users, User } from 'lucide-react';
-import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
+import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Users, User } from 'lucide-react';
 
 interface MyAlbumViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
-  updateStickerCount: (stickerId: string, delta: number, comment?: string, photoUrl?: string) => void;
-  saveStickerPhoto: (stickerId: string, photoUrl: string) => void;
+  updateStickerCount: (stickerId: string, delta: number, comment?: string) => void;
   openTeamDetails: (teamCode: string) => void;
 }
 
@@ -21,7 +19,6 @@ export function MyAlbumView({
   collection,
   allStickers,
   updateStickerCount,
-  saveStickerPhoto,
   openTeamDetails
 }: MyAlbumViewProps) {
   // Filters
@@ -33,23 +30,6 @@ export function MyAlbumView({
 
   // Selected Sticker for quick adjust modal
   const [selectedStickerDetail, setSelectedStickerDetail] = useState<Sticker | null>(null);
-
-  // Photo capture helper
-  const handleCapturePhoto = async (stickerId: string) => {
-    try {
-      const image = await CapacitorCamera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.DataUrl
-      });
-      if (image.dataUrl) {
-        saveStickerPhoto(stickerId, image.dataUrl);
-      }
-    } catch (e) {
-      console.log('Skipped taking picture', e);
-    }
-  };
-
 
   // Computed sections options
   const teamsMap = useMemo(() => {
@@ -363,8 +343,8 @@ export function MyAlbumView({
                     </div>
                   </div>
 
-                  {/* Sticker Display Grids matching design guidelines */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 relative z-10">
+                  {/* Sticker Display Grids - High Density, no photo space */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 relative z-10">
                     {section.stickers.map((sticker) => {
                       const count = collection.counts[sticker.id] || 0;
                       const hasIt = count > 0;
@@ -375,10 +355,10 @@ export function MyAlbumView({
                           id={`sticker-slot-${sticker.id}`}
                           key={sticker.id}
                           onClick={() => setSelectedStickerDetail(sticker)}
-                          className={`aspect-[3/4] rounded-2xl relative flex flex-col p-2 group cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 select-none overflow-hidden ${
+                          className={`rounded-xl relative flex flex-col p-3 group cursor-pointer hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 select-none overflow-hidden ${
                             hasIt 
                               ? isShiny 
-                                ? 'bg-gradient-to-b from-amber-50 to-amber-100 border-2 border-tertiary-fixed shadow-md dark:shadow-none' 
+                                ? 'bg-gradient-to-b from-amber-50 to-amber-100 border border-tertiary-fixed shadow-sm dark:shadow-none' 
                                 : 'bg-white border border-outline-variant/80 shadow-sm dark:shadow-none'
                               : 'bg-surface-container-low border border-dashed border-outline-variant/80 opacity-60'
                           }`}
@@ -389,81 +369,43 @@ export function MyAlbumView({
                                  style={{ animationDuration: '2.5s' }} />
                           )}
 
-                          {/* Sticker Code Identifier overlay */}
-                          <div className={`absolute top-2 right-2 rounded px-1.5 py-0.5 text-[10px] font-label-bold tracking-wider z-10 uppercase ${
-                            hasIt 
-                              ? isShiny 
+                          {/* Sticker Code Identifier */}
+                          <div className="flex justify-between items-start mb-2 relative z-20">
+                            <div className={`rounded px-1.5 py-0.5 text-[9px] font-label-bold tracking-wider uppercase ${
+                              hasIt 
+                                ? isShiny 
                                 ? 'bg-tertiary-fixed text-on-tertiary-fixed font-bold' 
                                 : 'bg-surface-container-highest text-on-surface-variant'
-                              : 'text-outline'
-                          }`}>
-                            {sticker.id}
-                          </div>
-
-                          {/* Bubble Duplicate Count Badge */}
-                          {count > 1 && (
-                            <div className="absolute -top-1 -right-1 bg-tertiary-container text-on-tertiary-container w-7 h-7 rounded-full flex items-center justify-center font-label-bold text-xs ring-2 ring-white shadow-md z-20 animate-wiggle">
-                              +{count - 1}
+                                : 'text-outline'
+                            }`}>
+                              {sticker.id}
                             </div>
-                          )}
 
-                          {/* Dynamic Card Interior graphics (Visual representations or generic stars) */}
-                          <div className={`flex-grow w-full relative rounded-xl overflow-hidden mb-2.5 transition-all outline outline-1 outline-offset-1 select-none ${
-                            hasIt 
-                              ? isShiny 
-                                ? 'bg-surface-container-high outline-amber-200/50' 
-                                : 'bg-surface-container-low outline-outline-variant/30'
-                              : 'bg-surface-container-high outline-dashed outline-outline-variant/30'
-                          }`}>
-                            {hasIt ? (
-                              <div className="w-full h-full relative flex items-center justify-center">
-                                {collection.photos?.[sticker.id] ? (
-                                  <img 
-                                    src={collection.photos[sticker.id]} 
-                                    alt={sticker.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className={`flex items-center justify-center ${isShiny ? 'text-tertiary' : 'text-primary/60'}`}>
-                                    {sticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : sticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
-                                  </div>
-                                )}
-                                {isShiny && (
-                                  <div className="absolute top-2 left-2 text-gold animate-bounce">
-                                    <Sparkles className="w-4 h-4 text-tertiary-fixed-dim" />
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="absolute inset-0 flex flex-col items-center justify-center text-outline">
-                                <div className="opacity-35">
-                                  {sticker.position === 'Emblem' ? <Shield className="w-10 h-10" /> : sticker.position === 'Team Photo' ? <Users className="w-10 h-10" /> : <User className="w-10 h-10" />}
-                                </div>
+                            {/* Duplicate Count Mini Badge */}
+                            {count > 1 && (
+                              <div className="bg-tertiary-container text-on-tertiary-container px-1.5 py-0.5 rounded-full font-label-bold text-[9px] shadow-sm z-20 animate-wiggle">
+                                +{count - 1}
                               </div>
                             )}
                           </div>
 
-                          {/* Footer descriptions */}
-                          <div className="text-center pb-0.5 mt-auto relative z-10 truncate">
-                            {hasIt ? (
-                              <>
-                                <div className={`font-label-bold text-xs truncate leading-none ${isShiny ? 'text-tertiary font-black' : 'text-on-surface'}`}>
-                                  {sticker.name}
-                                </div>
-                                <div className="text-[10px] text-on-surface-variant font-body-md uppercase tracking-wider mt-1 font-bold">
-                                  {sticker.position}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="font-label-bold text-xs text-outline font-extrabold tracking-wide uppercase">
-                                  Need
-                                </div>
-                                <div className="text-[10px] text-outline opacity-75 font-body-md uppercase tracking-wider mt-0.5 truncate">
-                                  {sticker.name}
-                                </div>
-                              </>
-                            )}
+                          {/* Information Content */}
+                          <div className="mt-auto relative z-10">
+                            <div className={`font-label-bold text-[11px] truncate leading-tight mb-0.5 ${
+                              hasIt 
+                                ? isShiny ? 'text-tertiary font-black' : 'text-on-surface'
+                                : 'text-outline font-extrabold opacity-60'
+                            }`}>
+                              {hasIt ? sticker.name : 'MISSING'}
+                            </div>
+                            <div className="text-[8px] text-on-surface-variant font-body-md uppercase tracking-widest font-bold opacity-70">
+                              {sticker.position}
+                            </div>
+                          </div>
+
+                          {/* Subtle background icon for type context without taking space */}
+                          <div className="absolute -bottom-1 -right-1 opacity-[0.04] pointer-events-none">
+                            {sticker.position === 'Emblem' ? <Shield className="w-12 h-12" /> : sticker.position === 'Team Photo' ? <Users className="w-12 h-12" /> : <User className="w-12 h-12" />}
                           </div>
                         </div>
                       );
@@ -583,17 +525,6 @@ export function MyAlbumView({
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-
-              {/* Take Sticker Photo / Retake Photo */}
-              {(collection.counts[selectedStickerDetail.id] || 0) > 0 && (
-                <button
-                  className="flex items-center justify-center gap-2 text-xs font-label-bold text-primary hover:bg-primary/5 px-4 py-2 mt-2 w-full rounded-xl transition-all cursor-pointer"
-                  onClick={() => handleCapturePhoto(selectedStickerDetail.id)}
-                >
-                  <Camera className="w-4 h-4" />
-                  {collection.photos?.[selectedStickerDetail.id] ? "Change Sticker Photo" : "Take Sticker Photo"}
-                </button>
-              )}
 
               {/* Paste Into Album direct shortcut button */}
               {(collection.counts[selectedStickerDetail.id] || 0) === 0 && (

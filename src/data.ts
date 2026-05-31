@@ -1304,8 +1304,7 @@ export function generateInitialCollectionState(): CollectionState {
   }
 
   return {
-    counts,
-    photos: {}
+    counts
   };
 }
 

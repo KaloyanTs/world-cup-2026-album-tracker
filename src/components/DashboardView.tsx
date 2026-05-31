@@ -93,8 +93,6 @@ export function DashboardView({
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Main Progress Hero Card */}
         <div id="main-progress-card" className="md:col-span-2 bg-gradient-to-br from-primary via-primary-container to-surface-tint text-on-primary rounded-[32px] p-8 lg:p-12 relative overflow-hidden flex flex-col justify-between min-h-[300px] shadow-lg">
-          {/* Decorative Soccer Pattern */}
-          <div className="absolute inset-x-0 bottom-0 top-0 opacity-15 mix-blend-overlay bg-no-repeat bg-cover bg-center pointer-events-none" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80')` }} />
           
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-2 bg-white/10 w-fit px-3 py-1 rounded-full text-xs font-label-bold uppercase tracking-wider backdrop-blur-md">
