@@ -15,6 +15,7 @@ import { MyAlbumView } from './components/MyAlbumView';
 import { TradingView, ActivityEntry, AdjustmentEntry } from './components/TradingView';
 import { TeamsView } from './components/TeamsView';
 import { TeamDetailsView } from './components/TeamDetailsView';
+import { CheckView } from './components/CheckView';
 
 import {
   Home,
@@ -31,7 +32,8 @@ import {
   Download,
   Copy,
   FileJson,
-  User
+  User,
+  ClipboardCheck
 } from 'lucide-react';
 import { Share } from '@capacitor/share';
 import { Clipboard } from '@capacitor/clipboard';
@@ -458,6 +460,24 @@ export default function App() {
             <li>
               <button
                 onClick={() => {
+                  setActiveTab('check');
+                  setSelectedTeamCode(null);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-[calc(100%-16px)] mx-2 text-left flex items-center gap-3.5 px-6 py-3.5 font-body-md text-sm rounded-xl transition-all ${
+                  activeTab === 'check'
+                    ? 'bg-primary text-on-primary font-label-bold scale-95 shadow-md shadow-primary/25'
+                    : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
+                }`}
+              >
+                <ClipboardCheck className="w-5 h-5 shrink-0" />
+                <span>Sticker Check</span>
+              </button>
+            </li>
+
+            <li>
+              <button
+                onClick={() => {
                   setActiveTab('teams');
                   setSelectedTeamCode(null);
                   setMobileMenuOpen(false);
@@ -577,6 +597,13 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'check' && (
+            <CheckView
+              collection={collection}
+              allStickers={allStickers}
+            />
+          )}
+
           {activeTab === 'teams' &&
             (selectedTeamCode ? (
               <TeamDetailsView
@@ -605,7 +632,7 @@ export default function App() {
             setActiveTab('dashboard');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/4 outline-none bg-transparent border-none ${
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
             activeTab === 'dashboard' ? 'text-primary' : 'hover:text-on-surface'
           }`}
         >
@@ -622,7 +649,7 @@ export default function App() {
             setActiveTab('album');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/4 outline-none bg-transparent border-none ${
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
             activeTab === 'album' ? 'text-primary' : 'hover:text-on-surface'
           }`}
         >
@@ -639,7 +666,7 @@ export default function App() {
             setActiveTab('trading');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center text-on-secondary-container rounded-full px-5 py-2 w-1/4 outline-none border-none animate-pulse ${
+          className={`flex flex-col items-center justify-center text-on-secondary-container rounded-full px-5 py-2 w-1/5 outline-none border-none animate-pulse ${
             activeTab === 'trading'
               ? 'bg-primary text-on-primary shadow-lg ring-4 ring-primary-container/30'
               : 'bg-secondary-container'
@@ -651,10 +678,27 @@ export default function App() {
 
         <button
           onClick={() => {
+            setActiveTab('check');
+            setSelectedTeamCode(null);
+          }}
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
+            activeTab === 'check' ? 'text-primary' : 'hover:text-on-surface'
+          }`}
+        >
+          <ClipboardCheck
+            className={`w-5.5 h-5.5 mb-1 ${
+              activeTab === 'check' ? 'text-primary fill-current' : ''
+            }`}
+          />
+          <span className="font-label-bold text-[10px] tracking-tight">Check</span>
+        </button>
+
+        <button
+          onClick={() => {
             setActiveTab('teams');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/4 outline-none bg-transparent border-none ${
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
             activeTab === 'teams' ? 'text-primary' : 'hover:text-on-surface'
           }`}
         >
