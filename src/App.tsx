@@ -16,6 +16,7 @@ import { TradingView, ActivityEntry, AdjustmentEntry } from './components/Tradin
 import { TeamsView } from './components/TeamsView';
 import { TeamDetailsView } from './components/TeamDetailsView';
 import { CheckView } from './components/CheckView';
+import { NeedsMatcherView } from './components/NeedsMatcherView';
 
 import {
   Home,
@@ -26,6 +27,7 @@ import {
   Settings,
   HelpCircle,
   Menu,
+  Handshake,
   X,
   AlertCircle,
   CheckCircle,
@@ -312,6 +314,64 @@ export default function App() {
     return { successes, errors };
   };
 
+  const handleQuickRemoveStickers = (input: string, reason: string) => {
+    const rawTokens = input
+      .split(',')
+      .map(s => s.trim().toUpperCase())
+      .filter(Boolean);
+
+    const successes: string[] = [];
+    const errors: string[] = [];
+    const blocked: string[] = [];
+
+    const stickersLookup = new Map<string, Sticker>(allStickers.map(s => [s.id, s]));
+
+    setCollection(prev => {
+      const next = {
+        ...prev,
+        counts: { ...(prev.counts ?? {}) }
+      };
+
+      rawTokens.forEach(tok => {
+        const cleanId = tok.replace('#', '');
+        const target = stickersLookup.get(cleanId);
+
+        if (!target) {
+          errors.push(tok);
+          return;
+        }
+
+        const currentCount = next.counts[cleanId] || 0;
+        if (currentCount <= 1) {
+          // Can't remove a sticker that's pasted in the album (count=1) or not owned (count=0)
+          blocked.push(cleanId);
+          return;
+        }
+
+        next.counts[cleanId] = currentCount - 1;
+        successes.push(cleanId);
+      });
+
+      return next;
+    });
+
+    // Log adjustments for each successful removal
+    if (successes.length > 0 && reason) {
+      const newAdjustments: AdjustmentEntry[] = successes.map(stickerId => ({
+        id: `adj-${Date.now()}-${Math.random()}`,
+        type: 'adjustment' as const,
+        timestamp: Date.now(),
+        stickerId,
+        delta: -1,
+        comment: reason
+      }));
+
+      setActivityLog(prev => [...newAdjustments, ...prev]);
+    }
+
+    return { successes, errors, blocked };
+  };
+
   const totalStickersCount = allStickers.length;
   const collectionCounts = collection.counts ?? {};
 
@@ -478,6 +538,24 @@ export default function App() {
             <li>
               <button
                 onClick={() => {
+                  setActiveTab('needs-matcher');
+                  setSelectedTeamCode(null);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-[calc(100%-16px)] mx-2 text-left flex items-center gap-3.5 px-6 py-3.5 font-body-md text-sm rounded-xl transition-all ${
+                  activeTab === 'needs-matcher'
+                    ? 'bg-primary text-on-primary font-label-bold scale-95 shadow-md shadow-primary/25'
+                    : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
+                }`}
+              >
+                <Handshake className="w-5 h-5 shrink-0" />
+                <span>Needs Matcher</span>
+              </button>
+            </li>
+
+            <li>
+              <button
+                onClick={() => {
                   setActiveTab('teams');
                   setSelectedTeamCode(null);
                   setMobileMenuOpen(false);
@@ -570,6 +648,7 @@ export default function App() {
               collection={collection}
               allStickers={allStickers}
               quickAddStickers={handleQuickAddStickers}
+              quickRemoveStickers={handleQuickRemoveStickers}
               setActiveTab={setActiveTab}
             />
           )}
@@ -604,6 +683,13 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'needs-matcher' && (
+            <NeedsMatcherView
+              collection={collection}
+              allStickers={allStickers}
+            />
+          )}
+
           {activeTab === 'teams' &&
             (selectedTeamCode ? (
               <TeamDetailsView
@@ -632,7 +718,7 @@ export default function App() {
             setActiveTab('dashboard');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/6 outline-none bg-transparent border-none ${
             activeTab === 'dashboard' ? 'text-primary' : 'hover:text-on-surface'
           }`}
         >
@@ -649,7 +735,7 @@ export default function App() {
             setActiveTab('album');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/6 outline-none bg-transparent border-none ${
             activeTab === 'album' ? 'text-primary' : 'hover:text-on-surface'
           }`}
         >
@@ -666,7 +752,7 @@ export default function App() {
             setActiveTab('trading');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center text-on-secondary-container rounded-full px-5 py-2 w-1/5 outline-none border-none animate-pulse ${
+          className={`flex flex-col items-center justify-center text-on-secondary-container rounded-full px-5 py-2 w-1/6 outline-none border-none animate-pulse ${
             activeTab === 'trading'
               ? 'bg-primary text-on-primary shadow-lg ring-4 ring-primary-container/30'
               : 'bg-secondary-container'
@@ -681,7 +767,7 @@ export default function App() {
             setActiveTab('check');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/6 outline-none bg-transparent border-none ${
             activeTab === 'check' ? 'text-primary' : 'hover:text-on-surface'
           }`}
         >
@@ -695,10 +781,27 @@ export default function App() {
 
         <button
           onClick={() => {
+            setActiveTab('needs-matcher');
+            setSelectedTeamCode(null);
+          }}
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/6 outline-none bg-transparent border-none ${
+            activeTab === 'needs-matcher' ? 'text-primary' : 'hover:text-on-surface'
+          }`}
+        >
+          <Handshake
+            className={`w-5.5 h-5.5 mb-1 ${
+              activeTab === 'needs-matcher' ? 'text-primary fill-current' : ''
+            }`}
+          />
+          <span className="font-label-bold text-[10px] tracking-tight">Match</span>
+        </button>
+
+        <button
+          onClick={() => {
             setActiveTab('teams');
             setSelectedTeamCode(null);
           }}
-          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/5 outline-none bg-transparent border-none ${
+          className={`flex flex-col items-center justify-center py-2 text-on-surface-variant transition-transform w-1/6 outline-none bg-transparent border-none ${
             activeTab === 'teams' ? 'text-primary' : 'hover:text-on-surface'
           }`}
         >

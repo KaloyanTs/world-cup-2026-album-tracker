@@ -10,17 +10,20 @@ import {
   Layers, 
   Repeat, 
   PlusCircle, 
+  MinusCircle,
   Truck, 
   CheckCircle,
   Gift,
   ArrowUpDown,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 interface DashboardViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
   quickAddStickers: (input: string) => { successes: string[]; errors: string[] };
+  quickRemoveStickers: (input: string, reason: string) => { successes: string[]; errors: string[]; blocked: string[] };
   setActiveTab: (tab: string) => void;
 }
 
@@ -28,9 +31,12 @@ export function DashboardView({
   collection,
   allStickers,
   quickAddStickers,
+  quickRemoveStickers,
   setActiveTab
 }: DashboardViewProps) {
   const [quickAddVal, setQuickAddVal] = useState('');
+  const [quickRemoveVal, setQuickRemoveVal] = useState('');
+  const [quickRemoveReason, setQuickRemoveReason] = useState('');
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Math Calculations
@@ -66,6 +72,42 @@ export function DashboardView({
     setTimeout(() => {
       setToastMessage(null);
     }, 4000);
+  };
+
+  const handleQuickRemove = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickRemoveVal.trim()) return;
+    if (!quickRemoveReason.trim()) {
+      setToastMessage({
+        type: 'error',
+        text: 'A reason is required for removing stickers.'
+      });
+      setTimeout(() => setToastMessage(null), 4000);
+      return;
+    }
+
+    const result = quickRemoveStickers(quickRemoveVal, quickRemoveReason);
+    const parts: string[] = [];
+
+    if (result.successes.length > 0) {
+      parts.push(`Removed: ${result.successes.join(', ')}`);
+    }
+    if (result.blocked.length > 0) {
+      parts.push(`Protected (count ≤ 1): ${result.blocked.join(', ')}`);
+    }
+    if (result.errors.length > 0) {
+      parts.push(`Not found: ${result.errors.join(', ')}`);
+    }
+
+    if (result.successes.length > 0) {
+      setToastMessage({ type: 'success', text: parts.join(' | ') });
+      setQuickRemoveVal('');
+      setQuickRemoveReason('');
+    } else {
+      setToastMessage({ type: 'error', text: parts.join(' | ') });
+    }
+
+    setTimeout(() => setToastMessage(null), 5000);
   };
 
   return (
@@ -190,6 +232,52 @@ export function DashboardView({
               className="bg-primary hover:bg-surface-tint text-on-primary font-label-bold px-6 py-3 rounded-xl active:scale-95 transition-all whitespace-nowrap text-sm"
             >
               Add to Collection
+            </button>
+          </form>
+        </div>
+
+        {/* Quick Remove Stickers Box */}
+        <div id="quick-remove-section" className="bg-surface-container-low p-6 lg:p-8 rounded-[32px] border border-outline-variant shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-error/10 p-2.5 rounded-full text-error">
+                <MinusCircle className="w-6 h-6" />
+              </div>
+              <h3 className="font-headline-md text-xl font-bold text-on-surface">Quick Remove Stickers</h3>
+            </div>
+            <p className="font-body-md text-sm text-on-surface-variant mb-6 leading-relaxed">
+              Need to remove duplicate stickers? Enter their codes separated by commas and provide a reason.
+              <br />
+              <span className="flex items-center gap-1.5 mt-2 text-xs text-on-surface-variant/80">
+                <AlertTriangle className="w-3.5 h-3.5 text-tertiary" />
+                Stickers pasted in the album (count = 1) are protected and cannot be removed.
+              </span>
+            </p>
+          </div>
+          
+          <form onSubmit={handleQuickRemove} className="flex flex-col gap-3">
+            <input 
+              id="quick-remove-input"
+              value={quickRemoveVal}
+              onChange={(e) => setQuickRemoveVal(e.target.value)}
+              className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-error/50 focus:border-transparent outline-none transition-all placeholder:text-outline font-body-md" 
+              placeholder="e.g. ARG-10, MEX-3, FWC-7" 
+              type="text"
+            />
+            <input 
+              id="quick-remove-reason"
+              value={quickRemoveReason}
+              onChange={(e) => setQuickRemoveReason(e.target.value)}
+              className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 text-on-surface focus:ring-2 focus:ring-error/50 focus:border-transparent outline-none transition-all placeholder:text-outline font-body-md" 
+              placeholder="Reason (e.g. traded with John, gave away)" 
+              type="text"
+            />
+            <button 
+              id="quick-remove-submit"
+              type="submit"
+              className="bg-error hover:bg-error/85 text-on-error font-label-bold px-6 py-3 rounded-xl active:scale-95 transition-all whitespace-nowrap text-sm self-end"
+            >
+              Remove from Collection
             </button>
           </form>
         </div>

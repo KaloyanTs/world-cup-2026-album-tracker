@@ -6,7 +6,8 @@
 import React, { useState, useMemo } from 'react';
 import { CollectionState, Sticker, Team } from '../types';
 import { TEAMS } from '../data';
-import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Users, User } from 'lucide-react';
+import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Users, User, X, Copy, ClipboardCheck } from 'lucide-react';
+import { Clipboard } from '@capacitor/clipboard';
 
 interface MyAlbumViewProps {
   collection: CollectionState;
@@ -30,6 +31,7 @@ export function MyAlbumView({
 
   // Selected Sticker for quick adjust modal
   const [selectedStickerDetail, setSelectedStickerDetail] = useState<Sticker | null>(null);
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
   // Computed sections options
   const teamsMap = useMemo(() => {
@@ -44,14 +46,24 @@ export function MyAlbumView({
   const filteredStickers = useMemo(() => {
     let list = allStickers;
 
-    // Search query
+    // Search query — supports comma-separated IDs with union semantics
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      list = list.filter(s => 
-        s.id.toLowerCase().includes(query) || 
-        s.name.toLowerCase().includes(query) || 
-        s.section.toLowerCase().includes(query)
-      );
+      const rawTerms = searchQuery.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+      if (rawTerms.length > 0) {
+        const matchedIds = new Set<string>();
+        rawTerms.forEach(term => {
+          allStickers.forEach(s => {
+            if (
+              s.id.toLowerCase().includes(term) ||
+              s.name.toLowerCase().includes(term) ||
+              s.section.toLowerCase().includes(term)
+            ) {
+              matchedIds.add(s.id);
+            }
+          });
+        });
+        list = list.filter(s => matchedIds.has(s.id));
+      }
     }
 
     // Section Category
@@ -225,19 +237,72 @@ export function MyAlbumView({
             </div>
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto mt-2 md:mt-0">
+          <div className="flex gap-3 w-full md:w-auto mt-2 md:mt-0 flex-wrap">
             {/* Search query box */}
-            <div className="relative flex-1 md:w-80">
+            <div className="relative flex-1 md:w-80 min-w-[200px]">
               <input 
                 id="search-stickers-input"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 h-11 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                placeholder="Search player or code..."
+                onChange={(e) => { setSearchQuery(e.target.value); setCopiedToClipboard(false); }}
+                className="w-full pl-9 pr-10 h-11 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                placeholder="Search or comma-separated IDs..."
                 type="text"
               />
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
+              {/* Clear search button */}
+              {searchQuery && (
+                <button
+                  id="clear-search-btn"
+                  onClick={() => { setSearchQuery(''); setCopiedToClipboard(false); }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-surface-variant text-on-surface-variant hover:text-on-surface transition-all"
+                  title="Clear search"
+                  type="button"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
+
+            {/* Copy results names to clipboard */}
+            {searchQuery.trim() && filteredStickers.length > 0 && (
+              <button
+                id="copy-results-btn"
+                onClick={async () => {
+                  const names = filteredStickers.map(s => {
+                    const prefix = s.teamCode || (s.id === '00' ? '00' : 'FWC');
+                    if (s.position === 'Team Photo') return `${prefix} Team Photo`;
+                    return `${prefix} ${s.name}`;
+                  }).join(', ');
+                  try {
+                    await Clipboard.write({ string: names });
+                    setCopiedToClipboard(true);
+                    setTimeout(() => setCopiedToClipboard(false), 2500);
+                  } catch {
+                    // Fallback for web
+                    try {
+                      await navigator.clipboard.writeText(names);
+                      setCopiedToClipboard(true);
+                      setTimeout(() => setCopiedToClipboard(false), 2500);
+                    } catch (e) {
+                      console.error('Clipboard write failed', e);
+                    }
+                  }
+                }}
+                className={`h-11 px-4 rounded-xl font-label-bold text-sm flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap border ${
+                  copiedToClipboard
+                    ? 'bg-secondary-container text-on-secondary-container border-secondary/30'
+                    : 'bg-surface-container-lowest text-on-surface border-outline-variant hover:bg-surface-variant'
+                }`}
+                title="Copy result names to clipboard"
+                type="button"
+              >
+                {copiedToClipboard ? (
+                  <><ClipboardCheck className="w-4 h-4 text-secondary" /> Copied!</>
+                ) : (
+                  <><Copy className="w-4 h-4" /> Copy Names</>
+                )}
+              </button>
+            )}
 
             {/* Sort Order dropdown */}
             <div className="relative">
