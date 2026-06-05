@@ -225,16 +225,6 @@ export default function App() {
     if (!target) return;
 
     if (delta < 0) {
-      const currentCount = collection.counts?.[stickerId] || 0;
-
-      if (currentCount <= 1 && currentCount > 0) {
-        addToast({
-          type: 'error',
-          text: 'Rules Violation: Once a sticker is in your album, you cannot remove it!'
-        });
-        return;
-      }
-
       if (!comment) {
         addToast({
           type: 'error',

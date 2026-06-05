@@ -22,27 +22,30 @@ export function TeamsView({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Group teams by their official Groups A-L
-  const groupedTeams = useMemo(() => {
+  const allGroupedTeams = useMemo(() => {
     const groups: { [grp: string]: Team[] } = {};
     for (const t of TEAMS) {
       if (!groups[t.group]) groups[t.group] = [];
       groups[t.group].push(t);
     }
+    return groups;
+  }, []);
 
-    // Filter based on search query
-    const filteredGroups: { [grp: string]: Team[] } = {};
-    Object.keys(groups).sort().forEach(grp => {
-      const filtered = groups[grp].filter(t => 
+  // Filter based on search query
+  const filteredGroups = useMemo(() => {
+    const filtered: { [grp: string]: Team[] } = {};
+    Object.keys(allGroupedTeams).sort().forEach(grp => {
+      const teams = allGroupedTeams[grp].filter(t => 
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         t.code.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      if (filtered.length > 0) {
-        filteredGroups[grp] = filtered;
+      if (teams.length > 0) {
+        filtered[grp] = teams;
       }
     });
 
-    return filteredGroups;
-  }, [searchQuery]);
+    return filtered;
+  }, [allGroupedTeams, searchQuery]);
 
   // Helper to compute team completion ratio
   const getTeamRatios = (teamCode: string) => {
@@ -78,12 +81,37 @@ export function TeamsView({
         </div>
 
         {/* Global Trophy counts badge */}
-        <div className="flex items-center gap-3 bg-tertiary-container/30 border border-tertiary/20 text-on-tertiary-container px-4 py-2.5 rounded-2xl select-none select-none shrink-0">
+        <div className="flex items-center gap-3 bg-tertiary-container/30 border border-tertiary/20 text-on-tertiary-container px-4 py-2.5 rounded-2xl select-none shrink-0">
           <Trophy className="w-5 h-5 text-tertiary-fixed-dim" />
           <div className="text-xs">
             <p className="font-label-bold font-black leading-none">{fullyCompletedTeamsCount} / 48</p>
             <p className="text-[10px] text-on-surface-variant mt-1">Teams Fully Completed</p>
           </div>
+        </div>
+      </div>
+
+      {/* Compact Flag Grid - Table-like arrangement */}
+      <div className="bg-surface-container-low/50 p-4 rounded-3xl border border-outline-variant/30">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-4">
+          {Object.keys(allGroupedTeams).sort().map((groupName) => (
+            <div key={groupName} className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-outline px-1">
+                {groupName}
+              </span>
+              <div className="flex items-center gap-1 bg-surface-container-high/40 p-1.5 rounded-xl border border-outline-variant/20">
+                {allGroupedTeams[groupName].map((team) => (
+                  <button
+                    key={team.code}
+                    onClick={() => onSelectTeam(team.code)}
+                    title={team.name}
+                    className="text-xl hover:scale-125 transition-transform duration-200 leading-none p-0.5"
+                  >
+                    {team.flagEmoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -102,21 +130,21 @@ export function TeamsView({
 
       {/* Collapsible/Bento blocks of Group collections */}
       <div className="flex flex-col gap-10">
-        {Object.keys(groupedTeams).length === 0 ? (
+        {Object.keys(filteredGroups).length === 0 ? (
           <div className="bg-surface-container-lowest p-12 rounded-3xl border border-dashed border-outline-variant text-center flex flex-col items-center justify-center">
             <Flag className="w-10 h-10 text-outline mb-2 opacity-40" />
             <p className="font-label-bold text-sm text-outline">No teams match your search</p>
             <p className="text-xs text-outline mt-1 font-body-md">Try typing a simplified country name or check spelling.</p>
           </div>
         ) : (
-          Object.keys(groupedTeams).map((groupName) => (
+          Object.keys(filteredGroups).map((groupName) => (
             <div id={`groupBlock-${groupName.replace(' ', '')}`} key={groupName} className="flex flex-col gap-4">
               <h3 className="font-headline-md text-base sm:text-lg font-bold text-on-surface flex items-center gap-2 border-l-4 border-primary pl-3">
                 {groupName}
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {groupedTeams[groupName].map((team) => {
+                {filteredGroups[groupName].map((team) => {
                   const { total, owned, isBadgeOwned, progressPercent } = getTeamRatios(team.code);
                   const isFinished = owned === total;
 

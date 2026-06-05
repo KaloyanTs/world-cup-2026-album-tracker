@@ -8,15 +8,15 @@ import { Team, Sticker, TradeOffer, CollectionState } from './types';
 export const TEAMS: Team[] = [
   // Group A
   { name: "Mexico", code: "MEX", group: "Group A", flagEmoji: "🇲🇽", fedName: "Federación Mexicana de Fútbol" },
-  { name: "Czechia", code: "CZE", group: "Group A", flagEmoji: "🇨🇿", fedName: "Fotbalová asociace České republiky" },
-  { name: "Korea Republic", code: "KOR", group: "Group A", flagEmoji: "🇰🇷", fedName: "Korea Football Association" },
   { name: "South Africa", code: "RSA", group: "Group A", flagEmoji: "🇿🇦", fedName: "South African Football Association" },
+  { name: "South Korea", code: "KOR", group: "Group A", flagEmoji: "🇰🇷", fedName: "Korea Football Association" },
+  { name: "Czech Republic", code: "CZE", group: "Group A", flagEmoji: "🇨🇿", fedName: "Fotbalová asociace České republiky" },
 
   // Group B
   { name: "Canada", code: "CAN", group: "Group B", flagEmoji: "🇨🇦", fedName: "Canada Soccer Association" },
+  { name: "Bosnia and Herzegovina", code: "BIH", group: "Group B", flagEmoji: "🇧🇦", fedName: "Nogometni Savez Bosne i Hercegovine" },
   { name: "Qatar", code: "QAT", group: "Group B", flagEmoji: "🇶🇦", fedName: "Qatar Football Association" },
   { name: "Switzerland", code: "SUI", group: "Group B", flagEmoji: "🇨🇭", fedName: "Association Suisse de Football" },
-  { name: "Bosnia & Herzegovina", code: "BIH", group: "Group B", flagEmoji: "🇧🇦", fedName: "Nogometni Savez Bosne i Hercegovine" },
 
   // Group C
   { name: "Brazil", code: "BRA", group: "Group C", flagEmoji: "🇧🇷", fedName: "Confederação Brasileira de Futebol" },
@@ -39,8 +39,8 @@ export const TEAMS: Team[] = [
   // Group F
   { name: "Netherlands", code: "NED", group: "Group F", flagEmoji: "🇳🇱", fedName: "Koninklijke Nederlandse Voetbalbond" },
   { name: "Japan", code: "JPN", group: "Group F", flagEmoji: "🇯🇵", fedName: "Japan Football Association" },
-  { name: "Tunisia", code: "TUN", group: "Group F", flagEmoji: "🇹🇳", fedName: "Fédération Tunisienne de Football" },
   { name: "Sweden", code: "SWE", group: "Group F", flagEmoji: "🇸🇪", fedName: "Svenska Fotbollförbundet" },
+  { name: "Tunisia", code: "TUN", group: "Group F", flagEmoji: "🇹🇳", fedName: "Fédération Tunisienne de Football" },
 
   // Group G
   { name: "Belgium", code: "BEL", group: "Group G", flagEmoji: "🇧🇪", fedName: "Royal Belgian Football Association" },
@@ -50,8 +50,8 @@ export const TEAMS: Team[] = [
 
   // Group H
   { name: "Spain", code: "ESP", group: "Group H", flagEmoji: "🇪🇸", fedName: "Real Federación Española de Fútbol" },
-  { name: "Saudi Arabia", code: "KSA", group: "Group H", flagEmoji: "🇸🇦", fedName: "Saudi Arabian Football Federation" },
   { name: "Cape Verde", code: "CPV", group: "Group H", flagEmoji: "🇨🇻", fedName: "Federação Caboverdiana de Futebol" },
+  { name: "Saudi Arabia", code: "KSA", group: "Group H", flagEmoji: "🇸🇦", fedName: "Saudi Arabian Football Federation" },
   { name: "Uruguay", code: "URU", group: "Group H", flagEmoji: "🇺🇾", fedName: "Asociación Uruguaya de Fútbol" },
 
   // Group I
@@ -68,9 +68,9 @@ export const TEAMS: Team[] = [
 
   // Group K
   { name: "Portugal", code: "POR", group: "Group K", flagEmoji: "🇵🇹", fedName: "Federação Portuguesa de Futebol" },
-  { name: "Colombia", code: "COL", group: "Group K", flagEmoji: "🇨🇴", fedName: "Federación Colombiana de Fútbol" },
-  { name: "Uzbekistan", code: "UZB", group: "Group K", flagEmoji: "🇺🇿", fedName: "Uzbekistan Football Association" },
   { name: "DR Congo", code: "COD", group: "Group K", flagEmoji: "🇨🇩", fedName: "Fédération Congolaise de Football-Association" },
+  { name: "Uzbekistan", code: "UZB", group: "Group K", flagEmoji: "🇺🇿", fedName: "Uzbekistan Football Association" },
+  { name: "Colombia", code: "COL", group: "Group K", flagEmoji: "🇨🇴", fedName: "Federación Colombiana de Fútbol" },
 
   // Group L
   { name: "England", code: "ENG", group: "Group L", flagEmoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", fedName: "The Football Association" },

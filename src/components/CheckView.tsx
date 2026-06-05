@@ -12,8 +12,10 @@ import {
   RefreshCcw,
   ClipboardCheck,
   Copy,
-  ClipboardCheckIcon
+  ClipboardCheckIcon,
+  ArrowUpDown
 } from 'lucide-react';
+import { TEAMS } from '../data';
 
 interface CheckViewProps {
   collection: CollectionState;
@@ -90,6 +92,72 @@ export function CheckView({ collection, allStickers }: CheckViewProps) {
     }
   };
 
+  const handleSort = () => {
+    const tokens = input.split(',').map(s => s.trim()).filter(Boolean);
+    
+    tokens.sort((a, b) => {
+      const idA = a.toUpperCase().replace('#', '');
+      const idB = b.toUpperCase().replace('#', '');
+      const stickerA = stickersMap.get(idA);
+      const stickerB = stickersMap.get(idB);
+      
+      if (!stickerA && !stickerB) return a.localeCompare(b);
+      if (!stickerA) return 1;
+      if (!stickerB) return -1;
+
+      if (stickerA.id === "00") return -1;
+      if (stickerB.id === "00") return 1;
+
+      const aIsFwc = stickerA.id.startsWith("FWC-");
+      const bIsFwc = stickerB.id.startsWith("FWC-");
+
+      if (aIsFwc && !bIsFwc) {
+        const num = parseInt(stickerA.id.split("-")[1]);
+        return num <= 8 ? -1 : 1;
+      }
+      if (!aIsFwc && bIsFwc) {
+        const num = parseInt(stickerB.id.split("-")[1]);
+        return num <= 8 ? 1 : -1;
+      }
+      if (aIsFwc && bIsFwc) {
+        const aNum = parseInt(stickerA.id.split("-")[1]);
+        const bNum = parseInt(stickerB.id.split("-")[1]);
+        const aCategory = aNum <= 8 ? 0 : 2;
+        const bCategory = bNum <= 8 ? 0 : 2;
+        if (aCategory !== bCategory) return aCategory - bCategory;
+        return aNum - bNum;
+      }
+
+      if (stickerA.teamCode && stickerB.teamCode) {
+        if (stickerA.teamCode === stickerB.teamCode) {
+          return (stickerA.number || 0) - (stickerB.number || 0);
+        }
+        const aIdx = TEAMS.findIndex(t => t.code === stickerA.teamCode);
+        const bIdx = TEAMS.findIndex(t => t.code === stickerB.teamCode);
+        return aIdx - bIdx;
+      }
+
+      return 0;
+    });
+
+    const sortedInput = tokens.join(', ');
+    setInput(sortedInput);
+
+    if (isChecked) {
+      const newResults = tokens.map(token => {
+        const cleanId = token.toUpperCase().replace('#', '');
+        const sticker = stickersMap.get(cleanId);
+        const owned = cleanId ? (collection.counts[cleanId] || 0) > 0 : false;
+        return {
+          id: token,
+          owned,
+          valid: !!sticker
+        };
+      });
+      setResults(newResults);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     setIsChecked(false); // Reset coloring state when edited
@@ -157,26 +225,35 @@ export function CheckView({ collection, allStickers }: CheckViewProps) {
             Check
           </button>
 
-          <button
-            onClick={handleCopy}
-            className={`w-full sm:w-auto font-label-bold py-3 px-8 rounded-full shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm border ${
-              copied
-                ? 'bg-green-600 text-white border-green-600'
-                : 'bg-surface-container-low text-on-surface border-outline-variant hover:bg-surface-container-high'
-            }`}
-          >
-            {copied ? (
-              <>
-                <ClipboardCheckIcon className="w-4 h-4" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Copy
-              </>
-            )}
-          </button>
+          <div className="w-full sm:w-auto flex rounded-full shadow-md">
+            <button
+              onClick={handleCopy}
+              className={`flex-1 sm:flex-none font-label-bold py-3 px-6 rounded-l-full active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm border border-r-0 ${
+                copied
+                  ? 'bg-green-600 text-white border-green-600'
+                  : 'bg-surface-container-low text-on-surface border-outline-variant hover:bg-surface-container-high'
+              }`}
+            >
+              {copied ? (
+                <>
+                  <ClipboardCheckIcon className="w-4 h-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  Copy
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleSort}
+              className="flex-1 sm:flex-none font-label-bold py-3 px-6 rounded-r-full active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm border bg-surface-container-low text-on-surface border-outline-variant hover:bg-surface-container-high"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              Sort
+            </button>
+          </div>
 
           <div className="flex items-center gap-6">
             <label className="flex items-center gap-2 cursor-pointer group">

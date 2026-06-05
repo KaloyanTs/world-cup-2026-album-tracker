@@ -6,7 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { CollectionState, Sticker, Team } from '../types';
 import { TEAMS } from '../data';
-import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Users, User, X, Copy, ClipboardCheck } from 'lucide-react';
+import { Search, ChevronDown, Award, Sparkles, Filter, Shield, Plus, Minus, Check, Users, User, X, Copy, ClipboardCheck, AlertCircle } from 'lucide-react';
 import { Clipboard } from '@capacitor/clipboard';
 
 interface MyAlbumViewProps {
@@ -31,6 +31,7 @@ export function MyAlbumView({
 
   // Selected Sticker for quick adjust modal
   const [selectedStickerDetail, setSelectedStickerDetail] = useState<Sticker | null>(null);
+  const [stickerToRemove, setStickerToRemove] = useState<Sticker | null>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
   // Computed sections options
@@ -483,6 +484,44 @@ export function MyAlbumView({
         </div>
       </div>
 
+      {/* WARNING MODAL FOR LAST COPY */}
+      {stickerToRemove && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setStickerToRemove(null)} />
+          <div className="relative bg-error-container border-2 border-error rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-center mb-4">
+              <AlertCircle className="w-16 h-16 text-error" />
+            </div>
+            <h3 className="font-display-lg text-2xl font-black text-on-error-container mb-4 text-center">DANGER!</h3>
+            <p className="font-body-md text-base text-on-error-container mb-8 text-center font-bold">
+              You are about to remove your ONLY copy of this sticker! This will permanently leave your album slot empty.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  const comment = window.prompt("Reason for manual inventory reduction (required):");
+                  if (comment) {
+                    updateStickerCount(stickerToRemove.id, -1, comment);
+                  }
+                  setStickerToRemove(null);
+                }}
+                className="flex items-center justify-center gap-3 w-full bg-error text-on-error py-4 rounded-2xl font-label-bold shadow-lg shadow-error/20 active:scale-95 transition-all"
+              >
+                Yes, Remove It
+              </button>
+              
+              <button
+                onClick={() => setStickerToRemove(null)}
+                className="w-full text-center py-4 bg-surface-container-high text-on-surface rounded-2xl font-label-bold hover:bg-surface-variant transition-all mt-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QUICK ADJUST STICKER MODAL OVERLAY */}
       {selectedStickerDetail && (
         <div 
@@ -559,9 +598,13 @@ export function MyAlbumView({
                   id="sticker-modal-dec"
                   disabled={(collection.counts[selectedStickerDetail.id] || 0) <= 0}
                   onClick={() => {
-                    const comment = window.prompt("Reason for manual inventory reduction (required):");
-                    if (comment) {
-                      updateStickerCount(selectedStickerDetail.id, -1, comment);
+                    if ((collection.counts[selectedStickerDetail.id] || 0) === 1) {
+                      setStickerToRemove(selectedStickerDetail);
+                    } else {
+                      const comment = window.prompt("Reason for manual inventory reduction (required):");
+                      if (comment) {
+                        updateStickerCount(selectedStickerDetail.id, -1, comment);
+                      }
                     }
                   }}
                   className="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center bg-surface hover:bg-surface-variant transition-colors disabled:opacity-40 select-none active:scale-90"
