@@ -111,6 +111,21 @@ export default function App() {
     });
   };
 
+  const handleCopyMissingSorted = async () => {
+    const sorted = getSortedStickers(allStickers);
+    const missing = sorted
+      .filter(s => (collection.counts[s.id] || 0) === 0)
+      .map(s => s.id);
+
+    const text = missing.join(', ');
+    try {
+      await Clipboard.write({ string: text });
+      addToast({ type: 'success', text: 'Missing stickers copied to clipboard!' });
+    } catch (e) {
+      addToast({ type: 'error', text: 'Failed to copy to clipboard' });
+    }
+  };
+
   const handleExportAll = async () => {
     const sorted = getSortedStickers(allStickers);
     const data = sorted.map(s => ({
@@ -587,6 +602,14 @@ export default function App() {
             </button>
 
             <button
+              onClick={handleCopyMissingSorted}
+              className="flex items-center gap-3 px-4 py-2 hover:bg-surface-variant rounded-xl text-left text-xs font-body-md text-on-surface-variant hover:text-on-surface border-none cursor-pointer outline-none bg-transparent"
+            >
+              <Copy className="w-4 h-4 text-secondary" />
+              <span>Export Missing</span>
+            </button>
+
+            <button
               onClick={() => setShowExportDupsModal(true)}
               className="flex items-center gap-3 px-4 py-2 hover:bg-surface-variant rounded-xl text-left text-xs font-body-md text-on-surface-variant hover:text-on-surface border-none cursor-pointer outline-none bg-transparent"
             >
@@ -688,12 +711,14 @@ export default function App() {
                 allStickers={allStickers}
                 updateStickerCount={updateStickerCount}
                 onBack={() => setSelectedTeamCode(null)}
+                addToast={addToast}
               />
             ) : (
               <TeamsView
                 collection={collection}
                 allStickers={allStickers}
                 onSelectTeam={setSelectedTeamCode}
+                addToast={addToast}
               />
             ))}
         </div>

@@ -6,18 +6,21 @@
 import React, { useState, useMemo } from 'react';
 import { CollectionState, Sticker, Team } from '../types';
 import { TEAMS } from '../data';
-import { Shield, Sparkles, ChevronRight, Search, Trophy, CheckSquare, Flag } from 'lucide-react';
+import { Shield, Sparkles, ChevronRight, Search, Trophy, CheckSquare, Flag, Copy, ClipboardCheck } from 'lucide-react';
+import { Clipboard } from '@capacitor/clipboard';
 
 interface TeamsViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
   onSelectTeam: (teamCode: string) => void;
+  addToast: (msg: { type: 'success' | 'error'; text: string }) => void;
 }
 
 export function TeamsView({
   collection,
   allStickers,
-  onSelectTeam
+  onSelectTeam,
+  addToast
 }: TeamsViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -69,6 +72,44 @@ export function TeamsView({
     }
     return count;
   }, [collection, allStickers]);
+
+  const handleCopyMissing = async (teamCode: string, teamName: string) => {
+    const missing = allStickers
+      .filter(s => s.teamCode === teamCode && (collection.counts[s.id] || 0) === 0)
+      .sort((a, b) => a.number - b.number)
+      .map(s => s.id);
+
+    if (missing.length === 0) {
+      addToast({ type: 'success', text: `No stickers missing from ${teamName}!` });
+      return;
+    }
+
+    const text = missing.join(', ');
+    await Clipboard.write({ string: text });
+    addToast({ type: 'success', text: `Missing from ${teamName} copied!` });
+  };
+
+  const handleCopyDuplicates = async (teamCode: string, teamName: string) => {
+    const duplicates: string[] = [];
+    allStickers
+      .filter(s => s.teamCode === teamCode && (collection.counts[s.id] || 0) > 1)
+      .sort((a, b) => a.number - b.number)
+      .forEach(s => {
+        const count = collection.counts[s.id] - 1;
+        for (let i = 0; i < count; i++) {
+          duplicates.push(s.id);
+        }
+      });
+
+    if (duplicates.length === 0) {
+      addToast({ type: 'error', text: `No duplicates for ${teamName}.` });
+      return;
+    }
+
+    const text = duplicates.join(', ');
+    await Clipboard.write({ string: text });
+    addToast({ type: 'success', text: `Duplicates from ${teamName} copied!` });
+  };
 
   return (
     <div id="teams-tab" className="flex flex-col gap-8 duration-200">
@@ -207,6 +248,26 @@ export function TeamsView({
                           }`} 
                           style={{ width: `${progressPercent}%` }}
                         />
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleCopyMissing(team.code, team.name)}
+                          title="Copy Missing"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-surface-container hover:bg-surface-variant rounded-lg text-[10px] font-label-bold text-on-surface-variant transition-all border border-outline-variant/20"
+                        >
+                          <ClipboardCheck className="w-3 h-3" />
+                          Missing
+                        </button>
+                        <button
+                          onClick={() => handleCopyDuplicates(team.code, team.name)}
+                          title="Copy Duplicates"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-surface-container hover:bg-surface-variant rounded-lg text-[10px] font-label-bold text-on-surface-variant transition-all border border-outline-variant/20"
+                        >
+                          <Copy className="w-3 h-3" />
+                          Dups
+                        </button>
                       </div>
 
                       {/* CTA Chevron indicator */}

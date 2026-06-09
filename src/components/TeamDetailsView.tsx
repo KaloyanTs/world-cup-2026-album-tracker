@@ -15,8 +15,11 @@ import {
   Plus,
   Minus,
   User,
-  X
+  X,
+  Copy,
+  ClipboardCheck
 } from 'lucide-react';
+import { Clipboard } from '@capacitor/clipboard';
 
 interface TeamDetailsViewProps {
   team: Team;
@@ -24,6 +27,7 @@ interface TeamDetailsViewProps {
   allStickers: Sticker[];
   updateStickerCount: (stickerId: string, delta: number, comment?: string) => void;
   onBack: () => void;
+  addToast: (msg: { type: 'success' | 'error'; text: string }) => void;
 }
 
 export function TeamDetailsView({
@@ -31,12 +35,50 @@ export function TeamDetailsView({
   collection,
   allStickers,
   updateStickerCount,
-  onBack
+  onBack,
+  addToast
 }: TeamDetailsViewProps) {
   // Grab the 20 stickers for this team
   const squadStickers = React.useMemo(() => {
     return allStickers.filter(s => s.teamCode === team.code).sort((a,b) => a.number - b.number);
   }, [allStickers, team]);
+
+  // Copy functions
+  const handleCopyMissing = async () => {
+    const missing = squadStickers
+      .filter(s => (collection.counts[s.id] || 0) === 0)
+      .map(s => s.id);
+
+    if (missing.length === 0) {
+      addToast({ type: 'success', text: `No stickers missing from ${team.name}!` });
+      return;
+    }
+
+    const text = missing.join(', ');
+    await Clipboard.write({ string: text });
+    addToast({ type: 'success', text: `Missing from ${team.name} copied!` });
+  };
+
+  const handleCopyDuplicates = async () => {
+    const duplicates: string[] = [];
+    squadStickers
+      .filter(s => (collection.counts[s.id] || 0) > 1)
+      .forEach(s => {
+        const count = collection.counts[s.id] - 1;
+        for (let i = 0; i < count; i++) {
+          duplicates.push(s.id);
+        }
+      });
+
+    if (duplicates.length === 0) {
+      addToast({ type: 'error', text: `No duplicates for ${team.name}.` });
+      return;
+    }
+
+    const text = duplicates.join(', ');
+    await Clipboard.write({ string: text });
+    addToast({ type: 'success', text: `Duplicates from ${team.name} copied!` });
+  };
 
   // Adjust modal state
   const [selectedSticker, setSelectedSticker] = useState<Sticker | null>(null);
@@ -83,13 +125,32 @@ export function TeamDetailsView({
             </div>
           </div>
 
-          <div className="relative z-10 mt-6 flex items-center gap-3">
-            <div className="w-10 h-10 bg-surface rounded-full flex items-center justify-center p-0.5 border border-outline-variant shadow-inner scale-95 shrink-0">
-              <Shield className="w-5 h-5 text-primary animate-pulse" />
+          <div className="relative z-10 mt-6 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-surface rounded-full flex items-center justify-center p-0.5 border border-outline-variant shadow-inner scale-95 shrink-0">
+                <Shield className="w-5 h-5 text-primary animate-pulse" />
+              </div>
+              <span className="font-label-bold text-sm text-on-surface-variant truncate font-black">
+                {team.fedName}
+              </span>
             </div>
-            <span className="font-label-bold text-sm text-on-surface-variant truncate font-black">
-              {team.fedName}
-            </span>
+
+            <div className="flex gap-2 ml-auto">
+              <button
+                onClick={handleCopyMissing}
+                className="flex items-center gap-2 px-4 py-2 bg-surface-container hover:bg-surface-variant rounded-xl text-xs font-label-bold text-on-surface-variant border border-outline-variant transition-all"
+              >
+                <ClipboardCheck className="w-4 h-4 text-primary" />
+                Copy Missing
+              </button>
+              <button
+                onClick={handleCopyDuplicates}
+                className="flex items-center gap-2 px-4 py-2 bg-surface-container hover:bg-surface-variant rounded-xl text-xs font-label-bold text-on-surface-variant border border-outline-variant transition-all"
+              >
+                <Copy className="w-4 h-4 text-secondary" />
+                Copy Dups
+              </button>
+            </div>
           </div>
         </div>
 
