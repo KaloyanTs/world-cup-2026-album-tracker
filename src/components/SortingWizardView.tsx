@@ -74,14 +74,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
       return;
     }
 
-    // Sort found stickers by official album order
-    const sorted = [...found].sort((a, b) => {
-      const idxA = allStickers.indexOf(a);
-      const idxB = allStickers.indexOf(b);
-      return idxA - idxB;
-    });
-
-    setFilteredStickers(sorted);
+    setFilteredStickers(found);
     setHistory([...history, state]);
     setState({ stage: 'stage1', stickerIndex: 0, currentGroupIndex: 0 });
   };
@@ -99,7 +92,11 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
 
     return Array.from(groupMap.entries())
       .sort(([a], [b]) => a - b)
-      .map(([num, data]) => ({ num, ...data }));
+      .map(([num, data]) => ({ 
+        num, 
+        label: data.label, 
+        stickers: [...data.stickers].reverse() 
+      }));
   }, [filteredStickers]);
 
   const currentSticker = filteredStickers[state.stickerIndex];
@@ -175,7 +172,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
               onChange={(e) => setInputText(e.target.value)}
             />
             <p className="text-xs text-on-surface-variant opacity-60">
-              Separate IDs with commas. The wizard will automatically organize them in the correct album order.
+              Separate IDs with commas. The wizard will show them in your order for Stage 1, and reverse order per group for Stage 2.
             </p>
           </div>
 
@@ -195,7 +192,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
     return (
       <div className="fixed inset-0 z-[100] bg-primary text-on-primary flex flex-col items-center justify-center p-8 text-center">
         <h2 className="text-4xl font-black mb-4 uppercase italic tracking-tighter">Sorting Complete!</h2>
-        <p className="text-xl mb-8 opacity-90 font-body-md">You've gone through all stickers in the album order.</p>
+        <p className="text-xl mb-8 opacity-90 font-body-md">You've gone through all stickers in your custom order.</p>
         <button 
           onClick={onClose}
           className="bg-white text-primary px-10 py-4 rounded-2xl font-label-bold shadow-xl active:scale-95 transition-all"
