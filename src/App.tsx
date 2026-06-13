@@ -17,6 +17,7 @@ import { TeamsView } from './components/TeamsView';
 import { TeamDetailsView } from './components/TeamDetailsView';
 import { CheckView } from './components/CheckView';
 import { NeedsMatcherView } from './components/NeedsMatcherView';
+import { SortingWizardView } from './components/SortingWizardView';
 
 import {
   Home,
@@ -35,7 +36,8 @@ import {
   Copy,
   FileJson,
   User,
-  ClipboardCheck
+  ClipboardCheck,
+  Wand2
 } from 'lucide-react';
 import { Share } from '@capacitor/share';
 import { Clipboard } from '@capacitor/clipboard';
@@ -64,6 +66,7 @@ export default function App() {
   const [selectedTeamCode, setSelectedTeamCode] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showExportDupsModal, setShowExportDupsModal] = useState(false);
+  const [showSortingWizard, setShowSortingWizard] = useState(false);
 
   const allStickers = useMemo(() => generateAllStickers(), []);
 
@@ -575,6 +578,19 @@ export default function App() {
                 <span>Teams</span>
               </button>
             </li>
+
+            <li>
+              <button
+                onClick={() => {
+                  setShowSortingWizard(true);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-[calc(100%-16px)] mx-2 text-left flex items-center gap-3.5 px-6 py-3.5 font-body-md text-sm rounded-xl transition-all text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface`}
+              >
+                <Wand2 className="w-5 h-5 shrink-0" />
+                <span>Sorting Wizard</span>
+              </button>
+            </li>
           </ul>
         </nav>
 
@@ -864,6 +880,14 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showSortingWizard && (
+        <SortingWizardView 
+          collection={collection}
+          allStickers={allStickers}
+          onClose={() => setShowSortingWizard(false)}
+        />
       )}
     </div>
   );
