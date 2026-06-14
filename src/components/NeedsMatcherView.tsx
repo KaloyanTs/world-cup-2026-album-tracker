@@ -31,6 +31,9 @@ interface MatchedId {
 export function NeedsMatcherView({ collection, allStickers }: NeedsMatcherViewProps) {
   const [input, setInput] = useState('');
   const [results, setResults] = useState<MatchedId[]>([]);
+  const [stats, setStats] = useState({ total: 0, hasDuplicate: 0, noDuplicate: 0 });
+  const [sampleSize, setSampleSize] = useState<number | ''>(5);
+  const [sampledResult, setSampledResult] = useState('');
   const [showHasDuplicate, setShowHasDuplicate] = useState(true);
   const [showNoDuplicate, setShowNoDuplicate] = useState(true);
   const [isChecked, setIsChecked] = useState(false);
@@ -62,10 +65,36 @@ export function NeedsMatcherView({ collection, allStickers }: NeedsMatcherViewPr
       };
     });
 
+    const total = newResults.length;
+    const hasDuplicateCount = newResults.filter(r => r.hasDuplicate && r.valid).length;
+    const noDuplicateCount = newResults.filter(r => !r.hasDuplicate && r.valid).length;
+    
+    setStats({ total, hasDuplicate: hasDuplicateCount, noDuplicate: noDuplicateCount });
     setResults(newResults);
     setShowHasDuplicate(true);
     setShowNoDuplicate(true);
     setIsChecked(true);
+  };
+
+  const handleSample = () => {
+    const duplicateIds = results
+      .filter(r => r.hasDuplicate && r.valid)
+      .map(r => {
+        const cleanId = r.id.toUpperCase().replace('#', '').trim();
+        return cleanId;
+      });
+    
+    // Remove duplicates from the list before sampling
+    const uniqueDuplicateIds = Array.from(new Set(duplicateIds));
+    
+    if (uniqueDuplicateIds.length === 0 || !sampleSize || sampleSize <= 0) {
+      setSampledResult('');
+      return;
+    }
+    
+    const shuffled = [...uniqueDuplicateIds].sort(() => 0.5 - Math.random());
+    const sampled = shuffled.slice(0, Math.min(Number(sampleSize), shuffled.length));
+    setSampledResult(sampled.join(', '));
   };
 
   const handleCopy = async () => {
@@ -156,12 +185,18 @@ export function NeedsMatcherView({ collection, allStickers }: NeedsMatcherViewPr
         };
       });
       setResults(newResults);
+      
+      const total = newResults.length;
+      const hasDuplicateCount = newResults.filter(r => r.hasDuplicate && r.valid).length;
+      const noDuplicateCount = newResults.filter(r => !r.hasDuplicate && r.valid).length;
+      setStats({ total, hasDuplicate: hasDuplicateCount, noDuplicate: noDuplicateCount });
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     setIsChecked(false); // Reset coloring state when edited
+    setStats({ total: 0, hasDuplicate: 0, noDuplicate: 0 });
   };
 
   const filteredResults = results.filter(r => {
@@ -216,6 +251,23 @@ export function NeedsMatcherView({ collection, allStickers }: NeedsMatcherViewPr
             )}
           </div>
         </div>
+
+        {isChecked && (
+          <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="bg-surface-container-high px-4 py-2 rounded-lg border border-outline-variant">
+              <span className="text-xs font-label-bold text-on-surface-variant uppercase block">Total IDs</span>
+              <span className="text-lg font-bold text-on-surface">{stats.total}</span>
+            </div>
+            <div className="bg-green-50 px-4 py-2 rounded-lg border border-green-100">
+              <span className="text-xs font-label-bold text-green-700 uppercase block">Can Offer</span>
+              <span className="text-lg font-bold text-green-900">{stats.hasDuplicate}</span>
+            </div>
+            <div className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
+              <span className="text-xs font-label-bold text-gray-700 uppercase block">Not Owned Dupl.</span>
+              <span className="text-lg font-bold text-gray-900">{stats.noDuplicate}</span>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <button
@@ -298,27 +350,79 @@ export function NeedsMatcherView({ collection, allStickers }: NeedsMatcherViewPr
         </div>
       </div>
 
-      <div className="bg-surface-container-low border border-outline-variant p-6 rounded-2xl flex flex-col gap-4">
-        <h4 className="font-label-bold text-on-surface text-sm uppercase tracking-wide flex items-center gap-2">
-          <RefreshCcw className="w-4 h-4 text-primary" />
-          How it works
-        </h4>
-        <div className="text-xs text-on-surface-variant space-y-3 leading-relaxed">
-          <p>
-            1. Paste the list of sticker IDs that someone else needs, separated by commas.
+      <div className="bg-surface-container-low border border-outline-variant p-6 rounded-2xl flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
+          <h4 className="font-label-bold text-on-surface text-sm uppercase tracking-wide flex items-center gap-2">
+            <Handshake className="w-4 h-4 text-primary" />
+            Sample Tradable Duplicates
+          </h4>
+          <p className="text-xs text-on-surface-variant">
+            Randomly select a few stickers from the duplicates you can offer.
           </p>
-          <p>
-            2. Click <span className="font-bold">Match</span> to cross-reference with your duplicates.
-          </p>
-          <p>
-            3. Stickers you <span className="text-green-600 font-bold">have as duplicates</span> will turn green — you can offer these!
-          </p>
-          <p>
-            4. Stickers you <span className="text-gray-900 font-bold">don't have as duplicates</span> will stay black.
-          </p>
-          <p>
-            5. Use the toggles to filter the view and the Copy button to share the result.
-          </p>
+          
+          <div className="flex flex-col sm:flex-row items-end gap-4">
+            <div className="flex flex-col gap-2 w-full sm:w-32">
+              <label className="text-[10px] font-bold uppercase text-outline">Count</label>
+              <input 
+                type="number"
+                value={sampleSize}
+                onChange={(e) => setSampleSize(e.target.value === '' ? '' : parseInt(e.target.value))}
+                min="1"
+                className="w-full p-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary transition-all"
+              />
+            </div>
+            <button
+              onClick={handleSample}
+              disabled={!isChecked || stats.hasDuplicate === 0}
+              className="w-full sm:w-auto bg-secondary text-on-secondary font-label-bold py-3 px-8 rounded-full shadow-md hover:bg-opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:pointer-events-none text-sm"
+            >
+              Sample
+            </button>
+          </div>
+
+          {sampledResult && (
+            <div className="mt-2 p-4 bg-surface-container-lowest border border-outline-variant rounded-xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold uppercase text-primary">Sampled Results</span>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(sampledResult);
+                  }}
+                  className="text-[10px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" />
+                  Copy Sample
+                </button>
+              </div>
+              <p className="font-mono text-sm break-words">{sampledResult}</p>
+            </div>
+          )}
+        </div>
+
+        <hr className="border-outline-variant opacity-50" />
+
+        <div className="flex flex-col gap-4">
+          <h4 className="font-label-bold text-on-surface text-sm uppercase tracking-wide flex items-center gap-2">
+            <RefreshCcw className="w-4 h-4 text-primary" />
+            How it works
+          </h4>
+          <div className="text-xs text-on-surface-variant space-y-3 leading-relaxed">
+            <p>
+              1. Paste the list of sticker IDs that someone else needs, separated by commas.
+            </p>
+            <p>
+              2. Click <span className="font-bold">Match</span> to cross-reference with your duplicates.
+            </p>
+            <p>
+              3. Stickers you <span className="text-green-600 font-bold">have as duplicates</span> will turn green — you can offer these!
+            </p>
+            <p>
+              4. Stickers you <span className="text-gray-900 font-bold">don't have as duplicates</span> will stay black.
+            </p>
+            <p>
+              5. Use the toggles to filter the view and the Copy button to share the result.
+            </p>
+          </div>
         </div>
       </div>
     </div>
