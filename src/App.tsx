@@ -18,6 +18,9 @@ import { TeamDetailsView } from './components/TeamDetailsView';
 import { CheckView } from './components/CheckView';
 import { NeedsMatcherView } from './components/NeedsMatcherView';
 import { SortingWizardView } from './components/SortingWizardView';
+import { DuplicatesWizardView } from './components/DuplicatesWizardView';
+import { QuickAddWizardView } from './components/QuickAddWizardView';
+import { QuickRemoveWizardView } from './components/QuickRemoveWizardView';
 
 import {
   Home,
@@ -37,7 +40,10 @@ import {
   FileJson,
   User,
   ClipboardCheck,
-  Wand2
+  Wand2,
+  Layers,
+  PlusCircle,
+  MinusCircle
 } from 'lucide-react';
 import { Share } from '@capacitor/share';
 import { Clipboard } from '@capacitor/clipboard';
@@ -67,6 +73,9 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showExportDupsModal, setShowExportDupsModal] = useState(false);
   const [showSortingWizard, setShowSortingWizard] = useState(false);
+  const [showDuplicatesWizard, setShowDuplicatesWizard] = useState(false);
+  const [showQuickAddWizard, setShowQuickAddWizard] = useState(false);
+  const [showQuickRemoveWizard, setShowQuickRemoveWizard] = useState(false);
 
   const allStickers = useMemo(() => generateAllStickers(), []);
 
@@ -406,6 +415,57 @@ export default function App() {
     }
   };
 
+  const handleDuplicatesWizardComplete = (newCounts: { [id: string]: number }) => {
+    setCollection(prev => ({
+      ...prev,
+      counts: newCounts
+    }));
+    setShowDuplicatesWizard(false);
+    addToast({
+      type: 'success',
+      text: 'Duplicates updated successfully!'
+    });
+  };
+
+  const handleQuickAddWizardComplete = (stickerIds: string[]) => {
+    setCollection(prev => {
+      const next = {
+        ...prev,
+        counts: { ...(prev.counts ?? {}) }
+      };
+      stickerIds.forEach(id => {
+        next.counts[id] = (next.counts[id] || 0) + 1;
+      });
+      return next;
+    });
+    setShowQuickAddWizard(false);
+    addToast({
+      type: 'success',
+      text: `Successfully added ${stickerIds.length} stickers!`
+    });
+  };
+
+  const handleQuickRemoveWizardComplete = (stickerIds: string[]) => {
+    setCollection(prev => {
+      const next = {
+        ...prev,
+        counts: { ...(prev.counts ?? {}) }
+      };
+      stickerIds.forEach(id => {
+        const current = next.counts[id] || 0;
+        if (current > 0) {
+          next.counts[id] = current - 1;
+        }
+      });
+      return next;
+    });
+    setShowQuickRemoveWizard(false);
+    addToast({
+      type: 'success',
+      text: `Successfully removed ${stickerIds.length} duplicates!`
+    });
+  };
+
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md antialiased md:relative">
       {toast && (
@@ -589,6 +649,43 @@ export default function App() {
               >
                 <Wand2 className="w-5 h-5 shrink-0" />
                 <span>Sorting Wizard</span>
+              </button>
+            </li>
+
+            <li>
+              <button
+                onClick={() => {
+                  setShowDuplicatesWizard(true);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-[calc(100%-16px)] mx-2 text-left flex items-center gap-3.5 px-6 py-3.5 font-body-md text-sm rounded-xl transition-all text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface`}
+              >
+                <Layers className="w-5 h-5 shrink-0" />
+                <span>Duplicates Wizard</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => {
+                  setShowQuickAddWizard(true);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-[calc(100%-16px)] mx-2 text-left flex items-center gap-3.5 px-6 py-3.5 font-body-md text-sm rounded-xl transition-all text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface`}
+              >
+                <PlusCircle className="w-5 h-5 shrink-0" />
+                <span>Quick Add Stickers</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => {
+                  setShowQuickRemoveWizard(true);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-[calc(100%-16px)] mx-2 text-left flex items-center gap-3.5 px-6 py-3.5 font-body-md text-sm rounded-xl transition-all text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface`}
+              >
+                <MinusCircle className="w-5 h-5 shrink-0" />
+                <span>Quick Remove Duplicates</span>
               </button>
             </li>
           </ul>
@@ -853,7 +950,7 @@ export default function App() {
             <p className="font-body-md text-sm text-on-surface-variant mb-8">
               Choose your preferred format for exporting your duplicate stickers.
             </p>
-            
+
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => handleExportDuplicates('json')}
@@ -862,7 +959,7 @@ export default function App() {
                 <FileJson className="w-5 h-5 text-primary" />
                 Export as JSON
               </button>
-              
+
               <button
                 onClick={() => handleExportDuplicates('clipboard')}
                 className="flex items-center justify-center gap-3 w-full bg-primary text-on-primary py-4 rounded-2xl font-label-bold shadow-lg shadow-primary/20 active:scale-95 transition-all"
@@ -870,7 +967,7 @@ export default function App() {
                 <Copy className="w-5 h-5" />
                 Copy to Clipboard
               </button>
-              
+
               <button
                 onClick={() => setShowExportDupsModal(false)}
                 className="w-full text-center py-2 text-xs font-label-bold text-on-surface-variant hover:text-on-surface mt-2"
@@ -887,6 +984,30 @@ export default function App() {
           collection={collection}
           allStickers={allStickers}
           onClose={() => setShowSortingWizard(false)}
+        />
+      )}
+
+      {showDuplicatesWizard && (
+        <DuplicatesWizardView
+          collection={collection}
+          onClose={() => setShowDuplicatesWizard(false)}
+          onComplete={handleDuplicatesWizardComplete}
+        />
+      )}
+
+      {showQuickAddWizard && (
+        <QuickAddWizardView
+          collection={collection}
+          onClose={() => setShowQuickAddWizard(false)}
+          onComplete={handleQuickAddWizardComplete}
+        />
+      )}
+
+      {showQuickRemoveWizard && (
+        <QuickRemoveWizardView
+          collection={collection}
+          onClose={() => setShowQuickRemoveWizard(false)}
+          onComplete={handleQuickRemoveWizardComplete}
         />
       )}
     </div>
