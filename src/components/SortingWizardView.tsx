@@ -6,13 +6,16 @@
 import React, { useState, useMemo } from 'react';
 import { Sticker, CollectionState, Team } from '../types';
 import { TEAMS } from '../data';
-import { ChevronLeft, SkipForward, X, Play, ClipboardList } from 'lucide-react';
+import { ChevronLeft, SkipForward, X, Play, Check } from 'lucide-react';
 
 interface SortingWizardViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
   onClose: () => void;
 }
+
+// Input sub-stage: which step of the grid flow are we on
+type InputStage = 'countries' | 'numbers';
 
 type WizardStage = 'input' | 'stage1' | 'stage2_intro' | 'stage2_items' | 'finished';
 
@@ -22,55 +25,53 @@ interface WizardState {
   currentGroupIndex: number;
 }
 
+const FWC_TEAM: Team = {
+  name: 'FIFA World Cup',
+  code: 'FWC',
+  group: 'Special',
+  flagEmoji: '🏆',
+  fedName: 'FIFA',
+};
+
 export function SortingWizardView({ collection, allStickers, onClose }: SortingWizardViewProps) {
-  const [inputText, setInputText] = useState('');
+  // ── Input stage state ─────────────────────────────────────────
+  const [inputStage, setInputStage] = useState<InputStage>('countries');
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [queuedIds, setQueuedIds] = useState<string[]>([]);
+
+  // ── Wizard stage state ────────────────────────────────────────
   const [filteredStickers, setFilteredStickers] = useState<Sticker[]>([]);
   const [state, setState] = useState<WizardState>({
     stage: 'input',
     stickerIndex: 0,
     currentGroupIndex: 0,
   });
-
   const [history, setHistory] = useState<WizardState[]>([]);
 
-  // Helpers to get group and team numbers
-  const getStickerInfo = (sticker: Sticker) => {
-    if (sticker.id === "00" || (sticker.id.startsWith("FWC-") && parseInt(sticker.id.split("-")[1]) <= 8)) {
-      return { groupLabel: "Intro", groupNum: 1, teamNum: 1, teamName: "Tournament" };
-    }
-    if (sticker.id.startsWith("FWC-")) {
-      return { groupLabel: "History", groupNum: 14, teamNum: 1, teamName: "History" };
-    }
-    if (sticker.teamCode) {
-      const team = TEAMS.find(t => t.code === sticker.teamCode);
-      if (team) {
-        const groupLetter = team.group.split(" ")[1]; // "Group A" -> "A"
-        const groupNum = groupLetter.charCodeAt(0) - 65 + 2; // A=2, B=3, ...
-        const teamsInGroup = TEAMS.filter(t => t.group === team.group);
-        const teamNum = teamsInGroup.findIndex(t => t.code === team.code) + 1;
-        return { groupLabel: groupLetter, groupNum, teamNum, teamName: team.name };
-      }
-    }
-    return { groupLabel: "?", groupNum: 0, teamNum: 0, teamName: "Unknown" };
+  // ── Input handlers ────────────────────────────────────────────
+  const handleSelectTeam = (team: Team) => {
+    setSelectedTeam(team);
+    setInputStage('numbers');
+  };
+
+  const handleSelectNumber = (num: number) => {
+    if (!selectedTeam) return;
+    const stickerId = `${selectedTeam.code}-${num}`;
+    setQueuedIds(prev => [stickerId, ...prev]);
+    // Loop back to country selection
+    setInputStage('countries');
+    setSelectedTeam(null);
   };
 
   const handleStartWizard = () => {
-    const ids = inputText
-      .split(',')
-      .map(id => id.trim().toUpperCase())
-      .filter(Boolean);
-    
-    if (ids.length === 0) {
-      alert('Please enter at least one sticker ID.');
-      return;
-    }
+    if (queuedIds.length === 0) return;
 
-    const found = ids
+    const found = queuedIds
       .map(id => allStickers.find(s => s.id === id))
       .filter((s): s is Sticker => s !== undefined);
 
     if (found.length === 0) {
-      alert('No valid sticker IDs found. Please check your list.');
+      alert('None of the selected sticker IDs could be found.');
       return;
     }
 
@@ -79,9 +80,30 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
     setState({ stage: 'stage1', stickerIndex: 0, currentGroupIndex: 0 });
   };
 
+  // ── Sorting wizard helpers ────────────────────────────────────
+  const getStickerInfo = (sticker: Sticker) => {
+    if (sticker.id === '00' || (sticker.id.startsWith('FWC-') && parseInt(sticker.id.split('-')[1]) <= 8)) {
+      return { groupLabel: 'Intro', groupNum: 1, teamNum: 1, teamName: 'Tournament' };
+    }
+    if (sticker.id.startsWith('FWC-')) {
+      return { groupLabel: 'History', groupNum: 14, teamNum: 1, teamName: 'History' };
+    }
+    if (sticker.teamCode) {
+      const team = TEAMS.find(t => t.code === sticker.teamCode);
+      if (team) {
+        const groupLetter = team.group.split(' ')[1]; // "Group A" -> "A"
+        const groupNum = groupLetter.charCodeAt(0) - 65 + 2; // A=2, B=3, …
+        const teamsInGroup = TEAMS.filter(t => t.group === team.group);
+        const teamNum = teamsInGroup.findIndex(t => t.code === team.code) + 1;
+        return { groupLabel: groupLetter, groupNum, teamNum, teamName: team.name };
+      }
+    }
+    return { groupLabel: '?', groupNum: 0, teamNum: 0, teamName: 'Unknown' };
+  };
+
   const groups = useMemo(() => {
     const groupMap = new Map<number, { label: string; stickers: Sticker[] }>();
-    
+
     filteredStickers.forEach(s => {
       const info = getStickerInfo(s);
       if (!groupMap.has(info.groupNum)) {
@@ -92,10 +114,10 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
 
     return Array.from(groupMap.entries())
       .sort(([a], [b]) => a - b)
-      .map(([num, data]) => ({ 
-        num, 
-        label: data.label, 
-        stickers: [...data.stickers].reverse() 
+      .map(([num, data]) => ({
+        num,
+        label: data.label,
+        stickers: [...data.stickers].reverse(),
       }));
   }, [filteredStickers]);
 
@@ -149,51 +171,164 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
     }
   };
 
+  // ── Render: INPUT stage ───────────────────────────────────────
   if (state.stage === 'input') {
     return (
-      <div className="fixed inset-0 z-[100] bg-white text-on-background flex flex-col items-center justify-center p-8">
-        <div className="max-w-md w-full flex flex-col gap-8">
-          <div className="flex justify-between items-center">
-            <h2 className="text-3xl font-black text-primary uppercase tracking-tighter italic">Sorting Wizard</h2>
-            <button onClick={onClose} className="p-2 hover:bg-surface-variant rounded-full transition-all">
-              <X className="w-6 h-6" />
+      <div className="fixed inset-0 z-[100] bg-surface-bright text-on-background flex flex-col select-none overflow-hidden animate-in fade-in duration-200">
+        {/* Header */}
+        <header className="flex justify-between items-center px-6 py-4 border-b border-outline-variant/30 bg-white">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={inputStage === 'numbers' ? () => { setInputStage('countries'); setSelectedTeam(null); } : onClose}
+              className="p-2.5 hover:bg-surface-variant rounded-full transition-all"
+            >
+              {inputStage === 'numbers' ? <ChevronLeft className="w-6 h-6" /> : <X className="w-6 h-6" />}
             </button>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-on-surface-variant">
-              <ClipboardList className="w-5 h-5" />
-              <span className="font-label-bold text-sm">Enter Sticker IDs to Sort</span>
+            <div>
+              <h2 className="text-xl font-black text-primary uppercase tracking-tighter italic leading-none">
+                Sorting Wizard
+              </h2>
+              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest opacity-60 mt-1">
+                {inputStage === 'countries' ? 'Select Country' : `Select Number: ${selectedTeam?.name}`}
+              </p>
             </div>
-            <textarea
-              className="w-full h-48 bg-surface-container-high border-2 border-outline-variant rounded-2xl p-4 font-label-bold text-lg focus:border-primary outline-none transition-all placeholder:opacity-30"
-              placeholder="e.g. 00, FWC-1, MEX-10, ARG-17..."
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-            />
-            <p className="text-xs text-on-surface-variant opacity-60">
-              Separate IDs with commas. The wizard will show them in your order for Stage 1, and reverse order per group for Stage 2.
-            </p>
           </div>
 
+          {/* Ready button */}
           <button
             onClick={handleStartWizard}
-            className="w-full bg-primary text-on-primary py-5 rounded-3xl font-label-bold text-lg shadow-xl shadow-primary/30 flex items-center justify-center gap-3 active:scale-95 transition-all"
+            disabled={queuedIds.length === 0}
+            className={`px-6 py-2.5 rounded-2xl font-label-bold shadow-lg active:scale-95 transition-all flex items-center gap-2 ${
+              queuedIds.length > 0
+                ? 'bg-primary text-on-primary shadow-primary/20'
+                : 'bg-surface-container-high text-on-surface-variant opacity-50 cursor-not-allowed shadow-none'
+            }`}
           >
-            <Play className="w-6 h-6 fill-current" />
-            Start Sorting
+            <Play className="w-5 h-5 fill-current" />
+            Ready ({queuedIds.length})
           </button>
+        </header>
+
+        {/* Main Content */}
+        <div className="flex-grow overflow-y-auto p-3 pb-24">
+          {inputStage === 'countries' ? (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                {TEAMS.map(team => (
+                  <button
+                    key={team.code}
+                    onClick={() => handleSelectTeam(team)}
+                    className="flex flex-col items-center justify-center aspect-square bg-white border border-outline-variant/40 rounded-xl p-1 hover:border-primary hover:bg-primary/5 transition-all active:scale-95 shadow-sm"
+                  >
+                    <span className="text-2xl mb-0.5">{team.flagEmoji}</span>
+                    <span className="text-[9px] font-black uppercase tracking-tighter text-on-surface text-center line-clamp-1">
+                      {team.code}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* FWC special */}
+              <div className="flex justify-center mt-2 pb-4">
+                <button
+                  onClick={() => handleSelectTeam(FWC_TEAM)}
+                  className="flex flex-col items-center justify-center w-20 h-20 bg-primary/10 border-2 border-primary/30 rounded-2xl p-2 hover:border-primary hover:bg-primary/20 transition-all active:scale-95 shadow-md"
+                >
+                  <span className="text-3xl mb-1">🏆</span>
+                  <span className="text-[10px] font-black uppercase tracking-tight text-primary text-center">
+                    FWC
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-xl mx-auto w-full">
+              <div className="flex items-center gap-3 mb-4 p-3 bg-primary/5 rounded-2xl border border-primary/10">
+                <span className="text-3xl">{selectedTeam?.flagEmoji}</span>
+                <div>
+                  <h3 className="text-lg font-black text-on-surface uppercase tracking-tighter italic">
+                    {selectedTeam?.name}
+                  </h3>
+                  <p className="text-[10px] font-label-bold text-on-surface-variant opacity-60">
+                    Select sticker number to add to sort list
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
+                {Array.from({ length: 20 }, (_, i) => i + 1).map(num => {
+                  const stickerId = `${selectedTeam?.code}-${num}`;
+                  const isOwned = (collection.counts[stickerId] || 0) > 0;
+                  const alreadyQueued = queuedIds.includes(stickerId);
+
+                  return (
+                    <button
+                      key={num}
+                      onClick={() => handleSelectNumber(num)}
+                      className={`aspect-square border rounded-xl flex flex-col items-center justify-center text-lg font-black transition-all active:scale-90 shadow-sm relative ${
+                        alreadyQueued
+                          ? 'bg-primary/10 border-primary text-primary'
+                          : isOwned
+                            ? 'bg-secondary-container/20 border-secondary text-secondary hover:bg-secondary/10'
+                            : 'bg-error-container/10 border-error/30 text-error hover:bg-error/5'
+                      }`}
+                    >
+                      {num}
+                      {alreadyQueued && (
+                        <span className="absolute top-0.5 right-1 text-[8px] font-black text-primary opacity-70">✓</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Session Queue Bar */}
+        {queuedIds.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-outline-variant/30 flex flex-col gap-2">
+            <div className="flex items-center justify-between px-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60">
+                Sort Queue ({queuedIds.length})
+              </span>
+              <button
+                onClick={() => setQueuedIds([])}
+                className="text-[10px] font-bold text-error uppercase tracking-tighter"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {queuedIds.slice(0, 15).map((id, i) => {
+                const owned = (collection.counts[id] || 0) > 0;
+                return (
+                  <div
+                    key={`${id}-${i}`}
+                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-black tracking-tighter border animate-in slide-in-from-left-4 duration-300 ${
+                      owned
+                        ? 'bg-secondary-container/30 text-secondary border-secondary/20'
+                        : 'bg-error-container/20 text-error border-error/20'
+                    }`}
+                  >
+                    {id}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
+  // ── Render: FINISHED stage ────────────────────────────────────
   if (state.stage === 'finished') {
     return (
       <div className="fixed inset-0 z-[100] bg-primary text-on-primary flex flex-col items-center justify-center p-8 text-center">
         <h2 className="text-4xl font-black mb-4 uppercase italic tracking-tighter">Sorting Complete!</h2>
         <p className="text-xl mb-8 opacity-90 font-body-md">You've gone through all stickers in your custom order.</p>
-        <button 
+        <button
           onClick={onClose}
           className="bg-white text-primary px-10 py-4 rounded-2xl font-label-bold shadow-xl active:scale-95 transition-all"
         >
@@ -203,11 +338,12 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
     );
   }
 
+  // ── Render: STAGE 1 / STAGE 2 ─────────────────────────────────
   return (
     <div className="fixed inset-0 z-[100] bg-white text-on-background flex flex-col select-none touch-none overflow-hidden">
       {/* Header */}
       <div className="flex justify-between items-center px-6 py-4 border-b border-outline-variant/30">
-        <button 
+        <button
           onClick={handleBack}
           disabled={history.length === 0}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${history.length === 0 ? 'opacity-20' : 'hover:bg-surface-variant active:scale-95'}`}
@@ -233,7 +369,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
 
         <div className="flex gap-2">
           {state.stage === 'stage1' && (
-            <button 
+            <button
               onClick={handleSkipStage1}
               className="flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-xl hover:bg-secondary/20 active:scale-95 transition-all"
             >
@@ -242,7 +378,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
             </button>
           )}
           {state.stage === 'stage2_items' && (
-            <button 
+            <button
               onClick={handleSkipGroup}
               className="flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-xl hover:bg-secondary/20 active:scale-95 transition-all"
             >
@@ -250,7 +386,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
               <span className="font-label-bold">Skip Group</span>
             </button>
           )}
-          <button 
+          <button
             onClick={onClose}
             className="p-2.5 hover:bg-error-container hover:text-on-error-container rounded-full transition-all"
           >
@@ -260,7 +396,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
       </div>
 
       {/* Main Content */}
-      <div 
+      <div
         className="flex-grow flex flex-col items-center justify-center p-6 cursor-pointer"
         onClick={handleNext}
       >
@@ -280,7 +416,7 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
         ) : (
           <>
             {/* Sticker ID */}
-            <div 
+            <div
               className={`text-[80px] sm:text-[120px] font-black tracking-tighter leading-none mb-12 ${
                 isOwned ? 'text-blue-600' : 'text-red-600'
               }`}
@@ -292,19 +428,19 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
             <div className="flex flex-col items-center gap-6">
               <div className="w-48 h-64 sm:w-64 sm:h-80 bg-surface-container-high border-4 border-primary rounded-[32px] flex items-center justify-center shadow-2xl">
                 <span className="text-[120px] sm:text-[180px] font-black text-primary leading-none">
-                  {state.stage === 'stage1' 
-                    ? currentStickerInfo?.groupNum 
+                  {state.stage === 'stage1'
+                    ? currentStickerInfo?.groupNum
                     : getStickerInfo(groups[state.currentGroupIndex].stickers[state.stickerIndex]).teamNum}
                 </span>
               </div>
-              
+
               <div className="text-center">
                 <span className="text-xl font-black uppercase tracking-widest text-on-surface-variant opacity-40">
                   {state.stage === 'stage1' ? 'Target Group' : 'Target Team'}
                 </span>
                 <div className="text-2xl font-bold text-on-surface mt-1">
-                  {state.stage === 'stage1' 
-                    ? `Group ${currentStickerInfo?.groupLabel}` 
+                  {state.stage === 'stage1'
+                    ? `Group ${currentStickerInfo?.groupLabel}`
                     : getStickerInfo(groups[state.currentGroupIndex].stickers[state.stickerIndex]).teamName}
                 </div>
               </div>
@@ -319,4 +455,3 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
     </div>
   );
 }
-
