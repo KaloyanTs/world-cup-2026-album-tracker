@@ -4,18 +4,15 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Sticker, CollectionState, Team } from '../types';
+import { Sticker, CollectionState } from '../types';
 import { TEAMS } from '../data';
-import { ChevronLeft, SkipForward, X, Play, Check } from 'lucide-react';
+import { ChevronLeft, SkipForward, X, Play } from 'lucide-react';
 
 interface SortingWizardViewProps {
   collection: CollectionState;
   allStickers: Sticker[];
   onClose: () => void;
 }
-
-// Input sub-stage: which step of the grid flow are we on
-type InputStage = 'countries' | 'numbers';
 
 type WizardStage = 'input' | 'stage1' | 'stage2_intro' | 'stage2_items' | 'finished';
 
@@ -25,19 +22,16 @@ interface WizardState {
   currentGroupIndex: number;
 }
 
-const FWC_TEAM: Team = {
-  name: 'FIFA World Cup',
-  code: 'FWC',
-  group: 'Special',
-  flagEmoji: '🏆',
-  fedName: 'FIFA',
-};
-
 export function SortingWizardView({ collection, allStickers, onClose }: SortingWizardViewProps) {
   // ── Input stage state ─────────────────────────────────────────
-  const [inputStage, setInputStage] = useState<InputStage>('countries');
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [queuedIds, setQueuedIds] = useState<string[]>([]);
+  const [inputText, setInputText] = useState('');
+
+  const parsedIds = useMemo(() => {
+    return inputText
+      .split(',')
+      .map(s => s.trim().toUpperCase())
+      .filter(s => s.length > 0);
+  }, [inputText]);
 
   // ── Wizard stage state ────────────────────────────────────────
   const [filteredStickers, setFilteredStickers] = useState<Sticker[]>([]);
@@ -49,31 +43,15 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
   const [history, setHistory] = useState<WizardState[]>([]);
 
   // ── Input handlers ────────────────────────────────────────────
-  const handleSelectTeam = (team: Team) => {
-    setSelectedTeam(team);
-    setInputStage('numbers');
-  };
-
-  const handleSelectNumber = (num: number) => {
-    if (!selectedTeam) return;
-    const stickerId = `${selectedTeam.code}-${num}`;
-    setQueuedIds(prev => [stickerId, ...prev]);
-    // Loop back to country selection
-    setInputStage('countries');
-    setSelectedTeam(null);
-  };
-
   const handleStartWizard = () => {
-    if (queuedIds.length === 0) return;
+    const ids = parsedIds;
+    if (ids.length === 0) return;
 
-    const found = queuedIds
+    const found = ids
       .map(id => allStickers.find(s => s.id === id))
       .filter((s): s is Sticker => s !== undefined);
 
-    if (found.length === 0) {
-      alert('None of the selected sticker IDs could be found.');
-      return;
-    }
+    if (found.length === 0) return;
 
     setFilteredStickers(found);
     setHistory([...history, state]);
@@ -179,17 +157,17 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
         <header className="flex justify-between items-center px-6 py-4 border-b border-outline-variant/30 bg-white">
           <div className="flex items-center gap-4">
             <button
-              onClick={inputStage === 'numbers' ? () => { setInputStage('countries'); setSelectedTeam(null); } : onClose}
+              onClick={onClose}
               className="p-2.5 hover:bg-surface-variant rounded-full transition-all"
             >
-              {inputStage === 'numbers' ? <ChevronLeft className="w-6 h-6" /> : <X className="w-6 h-6" />}
+              <X className="w-6 h-6" />
             </button>
             <div>
               <h2 className="text-xl font-black text-primary uppercase tracking-tighter italic leading-none">
                 Sorting Wizard
               </h2>
               <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest opacity-60 mt-1">
-                {inputStage === 'countries' ? 'Select Country' : `Select Number: ${selectedTeam?.name}`}
+                Enter sticker IDs
               </p>
             </div>
           </div>
@@ -197,127 +175,73 @@ export function SortingWizardView({ collection, allStickers, onClose }: SortingW
           {/* Ready button */}
           <button
             onClick={handleStartWizard}
-            disabled={queuedIds.length === 0}
+            disabled={parsedIds.length === 0}
             className={`px-6 py-2.5 rounded-2xl font-label-bold shadow-lg active:scale-95 transition-all flex items-center gap-2 ${
-              queuedIds.length > 0
+              parsedIds.length > 0
                 ? 'bg-primary text-on-primary shadow-primary/20'
                 : 'bg-surface-container-high text-on-surface-variant opacity-50 cursor-not-allowed shadow-none'
             }`}
           >
             <Play className="w-5 h-5 fill-current" />
-            Ready ({queuedIds.length})
+            Ready ({parsedIds.length})
           </button>
         </header>
 
         {/* Main Content */}
-        <div className="flex-grow overflow-y-auto p-3 pb-24">
-          {inputStage === 'countries' ? (
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-                {TEAMS.map(team => (
-                  <button
-                    key={team.code}
-                    onClick={() => handleSelectTeam(team)}
-                    className="flex flex-col items-center justify-center aspect-square bg-white border border-outline-variant/40 rounded-xl p-1 hover:border-primary hover:bg-primary/5 transition-all active:scale-95 shadow-sm"
-                  >
-                    <span className="text-2xl mb-0.5">{team.flagEmoji}</span>
-                    <span className="text-[9px] font-black uppercase tracking-tighter text-on-surface text-center line-clamp-1">
-                      {team.code}
-                    </span>
-                  </button>
-                ))}
-              </div>
+        <div className="flex-grow overflow-y-auto p-6 pb-24">
+          <div className="max-w-2xl mx-auto flex flex-col gap-4">
+            <label className="text-sm font-bold text-on-surface-variant">
+              Paste or type sticker IDs separated by commas
+            </label>
+            <textarea
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              placeholder="e.g. ARG-5, BRA-3, FWC-1"
+              className="w-full min-h-[120px] p-4 rounded-2xl border border-outline-variant/40 bg-white text-base font-mono font-bold text-on-surface placeholder:text-on-surface-variant/40 resize-none outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              autoFocus
+            />
 
-              {/* FWC special */}
-              <div className="flex justify-center mt-2 pb-4">
-                <button
-                  onClick={() => handleSelectTeam(FWC_TEAM)}
-                  className="flex flex-col items-center justify-center w-20 h-20 bg-primary/10 border-2 border-primary/30 rounded-2xl p-2 hover:border-primary hover:bg-primary/20 transition-all active:scale-95 shadow-md"
-                >
-                  <span className="text-3xl mb-1">🏆</span>
-                  <span className="text-[10px] font-black uppercase tracking-tight text-primary text-center">
-                    FWC
-                  </span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-xl mx-auto w-full">
-              <div className="flex items-center gap-3 mb-4 p-3 bg-primary/5 rounded-2xl border border-primary/10">
-                <span className="text-3xl">{selectedTeam?.flagEmoji}</span>
-                <div>
-                  <h3 className="text-lg font-black text-on-surface uppercase tracking-tighter italic">
-                    {selectedTeam?.name}
-                  </h3>
-                  <p className="text-[10px] font-label-bold text-on-surface-variant opacity-60">
-                    Select sticker number to add to sort list
-                  </p>
+            {/* Parsed IDs */}
+            {parsedIds.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60">
+                  Parsed IDs ({parsedIds.length})
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const counts = parsedIds.reduce<Record<string, number>>((acc, id) => {
+                      acc[id] = (acc[id] || 0) + 1;
+                      return acc;
+                    }, {});
+                    return parsedIds.map((id, i) => {
+                      const owned = (collection.counts[id] || 0) > 0;
+                      const found = allStickers.find(s => s.id === id);
+                      const duped = counts[id] > 1;
+                      return (
+                        <div
+                          key={`${id}-${i}`}
+                          className={`px-4 py-2 rounded-xl text-xs font-black tracking-tighter border ${
+                            !found
+                              ? 'bg-gray-100 text-gray-400 border-gray-200'
+                              : duped
+                                ? 'bg-purple-100 text-purple-700 border-purple-300'
+                                : owned
+                                  ? 'bg-secondary-container/30 text-secondary border-secondary/20'
+                                  : 'bg-error-container/20 text-error border-error/20'
+                          }`}
+                        >
+                          {id}
+                          {!found && <span className="ml-1 opacity-50">(?)</span>}
+                          {found && duped && <span className="ml-1 opacity-70">×{counts[id]}</span>}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
-
-              <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
-                {Array.from({ length: 20 }, (_, i) => i + 1).map(num => {
-                  const stickerId = `${selectedTeam?.code}-${num}`;
-                  const isOwned = (collection.counts[stickerId] || 0) > 0;
-                  const alreadyQueued = queuedIds.includes(stickerId);
-
-                  return (
-                    <button
-                      key={num}
-                      onClick={() => handleSelectNumber(num)}
-                      className={`aspect-square border rounded-xl flex flex-col items-center justify-center text-lg font-black transition-all active:scale-90 shadow-sm relative ${
-                        alreadyQueued
-                          ? 'bg-primary/10 border-primary text-primary'
-                          : isOwned
-                            ? 'bg-secondary-container/20 border-secondary text-secondary hover:bg-secondary/10'
-                            : 'bg-error-container/10 border-error/30 text-error hover:bg-error/5'
-                      }`}
-                    >
-                      {num}
-                      {alreadyQueued && (
-                        <span className="absolute top-0.5 right-1 text-[8px] font-black text-primary opacity-70">✓</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Session Queue Bar */}
-        {queuedIds.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-outline-variant/30 flex flex-col gap-2">
-            <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60">
-                Sort Queue ({queuedIds.length})
-              </span>
-              <button
-                onClick={() => setQueuedIds([])}
-                className="text-[10px] font-bold text-error uppercase tracking-tighter"
-              >
-                Clear
-              </button>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {queuedIds.slice(0, 15).map((id, i) => {
-                const owned = (collection.counts[id] || 0) > 0;
-                return (
-                  <div
-                    key={`${id}-${i}`}
-                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-black tracking-tighter border animate-in slide-in-from-left-4 duration-300 ${
-                      owned
-                        ? 'bg-secondary-container/30 text-secondary border-secondary/20'
-                        : 'bg-error-container/20 text-error border-error/20'
-                    }`}
-                  >
-                    {id}
-                  </div>
-                );
-              })}
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     );
   }
