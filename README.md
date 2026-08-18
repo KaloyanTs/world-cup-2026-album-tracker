@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# World Cup 2026 Album Tracker
 
-# Run and deploy your AI Studio app
+A React app for tracking your Panini World Cup 2026 sticker album: manage your collection, find duplicates, sort stickers, and trade with others. Packaged as an Android app with Capacitor.
 
-This contains everything you need to run your app locally.
+## Compiling the .apk
 
-View your app in AI Studio: https://ai.studio/apps/8761a905-7637-4126-ae9e-1fae400c2137
+**Prerequisites:**
+- [Node.js](https://nodejs.org/) (v18+)
+- [Android Studio](https://developer.android.com/studio) (includes the Android SDK)
+- A JDK (bundled with Android Studio)
 
-## Run Locally
+**Steps:**
 
-**Prerequisites:**  Node.js
+1. Install JS dependencies:
+   ```
+   npm install
+   ```
+2. Build the web app:
+   ```
+   npm run build
+   ```
+   This produces the `dist/` folder that gets packaged into the Android app.
+3. Sync the web build into the Android project:
+   ```
+   npx cap sync android
+   ```
+4. Build the APK. Either:
+   - **Using Android Studio (recommended):**
+     1. Open the `android/` folder as a project in Android Studio.
+     2. Let Gradle finish syncing (it will prompt you to install any missing SDK components — accept these).
+     3. Go to `Build > Build App Bundle(s) / APK(s) > Build APK(s)`.
+     4. Once finished, click the "locate" link in the notification, or find the file at `android/app/build/outputs/apk/debug/app-debug.apk`.
+   - **Using the command line:**
+     ```
+     cd android
+     ./gradlew assembleDebug
+     ```
+     (On Windows, use `gradlew.bat assembleDebug`.)
+     The APK will be at `android/app/build/outputs/apk/debug/app-debug.apk`.
+5. Transfer the `.apk` to an Android device and install it (you may need to allow installing apps from unknown sources).
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+> Note: this produces a debug build, which is fine for personal use/testing. A release build requires signing with your own keystore.
